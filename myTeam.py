@@ -17,6 +17,31 @@ import random, time, util
 from game import Directions
 import game
 
+class BoardEdge:
+    """
+    Represents an edge of the graph of the board
+    """
+    def __init__(self, start, end=None):
+        self.start = start
+        self.end = end
+        self.positions = []
+
+    def addEnd(self, end):
+        self.end = end
+
+    def addPosition(self, position):
+        self.positions.append(position)
+
+    def weight(self):
+        return len(self.positions) + 1
+
+    def ends(self):
+        return (self.start, self.end)
+
+    def distances(self, position):
+        index = self.positions.index(position)
+        return ((self.start, index + 1), (self.end, len(self.positions - index)))
+
 #################
 # Team creation #
 #################
