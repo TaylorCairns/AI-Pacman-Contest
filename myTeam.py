@@ -107,6 +107,47 @@ class BoardNode:
                 self.addEdge(action, edge)
                 nodes[newPos].addEdge(Directions.REVERSE[newAction], edge)
 
+class BoardGraph:
+    """
+    A graph representation of the pacman board
+    """
+    def __init__(self, walls):
+        self.positions = {}
+        self.nodes = {}
+        borderEast = walls.width // 2
+        # Create nodes for all unwalled positions that do not have exactly two
+        #   unwalled neighbors
+        for x in range(1, walls.width - 1):
+            for y in range(1, walls.height -1):
+                if not walls[x][y]:
+                    neighbours = Vectors.findNeigbours(x, y, walls)
+                    if len(neighbours) != 2:
+                        position = (x, y)
+                        node = BoardNode(position, neighbours,
+                            True if x < borderEast else False)
+                        self.positions[position] = node
+                        self.nodes[position] = node
+        # Create nodes for all positions that mark the border if they are not
+        #   already nodes
+        borderWest = borderEast - 1
+        for y in range(1, walls.height -1):
+            if not walls[borderEast][y] and not walls[borderWest][y]:
+                posEast = (borderEast, y)
+                posWest = (borderWest, y)
+                if posEast not in self.nodes:
+                    neighbours = Vectors.findNeigbours(borderEast, y, walls)
+                    node = BoardNode(posEast, neighbours, False)
+                    self.positions[position] = node
+                    self.nodes[position] = node
+                if posWest not in self.nodes:
+                    neighbours = Vectors.findNeigbours(borderWest, y, walls)
+                    node = BoardNode(posWest, neighbours, True)
+                    self.positions[position] = node
+                    self.nodes[position] = node
+        # Create edges between nodes
+        for node in self.nodes:
+            self.nodes[node].createEdges(self.nodes, self.positions, walls)
+
 #################
 # Team creation #
 #################
