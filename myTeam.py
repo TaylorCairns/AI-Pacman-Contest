@@ -148,6 +148,20 @@ class BoardGraph:
         for node in self.nodes:
             self.nodes[node].createEdges(self.nodes, self.positions, walls)
 
+class Hivemind:
+    """
+    The Hivemind stores a team of agents collective understanding of the board
+    and any belief states held about the position of the opposing team.
+    """
+    def __init__( self, teamIndexes, isRed ):
+        self.teamIndexes = teamIndexes
+        self.isRed = isRed
+        self.board = None
+
+    def registerInitialState(self, index, gameState):
+        if self.board == None:
+            self.board = BoardGraph(gameState.getWalls())
+
 #################
 # Team creation #
 #################
