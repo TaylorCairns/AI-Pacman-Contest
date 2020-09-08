@@ -38,7 +38,7 @@ class Vectors:
         for action in Vectors._VECTORS_:
             if action != Directions.STOP:
                 newX, newY = Vectors.newPosition(x, y, action)
-                if newX > 0 and newX < walls.width - 1 and newY > 0 and newY < walls.height - 1 and not walls[newX][newY]:
+                if not walls[newX][newY]:
                     neighbours.append(action)
         return neighbours
 
@@ -79,7 +79,7 @@ class BoardNode:
             self.exits[action] = None
 
     def addEdge(self, action, edge):
-        self.exits.update((action, edge))
+        self.exits[action] = edge
 
     def createEdges(self, nodes, positions, walls):
         for action in self.exits:
@@ -97,12 +97,11 @@ class BoardNode:
                         positions[newPos] = edge
                         x, y = newPos
                         neighbours = Vectors.findNeigbours(x, y, walls)
+                        if Directions.REVERSE[newAction] in neighbours:
+                            neighbours.remove(Directions.REVERSE[newAction])
                         if len(neighbours) > 0:
                             newAction = neighbours[0]
-                            neighbours.remove(Directions.REVERSE[action])
-                        newPos = Vectors.newPosition(x, y, action)
-                        if len(neighbours) > 0:
-                            newAction = neighbours[0]
+                        newPos = Vectors.newPosition(x, y, newAction)
                     edge.addEnd(nodes[newPos])
                 self.addEdge(action, edge)
                 nodes[newPos].addEdge(Directions.REVERSE[newAction], edge)
@@ -133,17 +132,17 @@ class BoardGraph:
         for y in range(1, walls.height -1):
             if not walls[borderEast][y] and not walls[borderWest][y]:
                 posEast = (borderEast, y)
-                posWest = (borderWest, y)
                 if posEast not in self.nodes:
                     neighbours = Vectors.findNeigbours(borderEast, y, walls)
                     node = BoardNode(posEast, neighbours, False)
-                    self.positions[position] = node
-                    self.nodes[position] = node
+                    self.positions[posEast] = node
+                    self.nodes[posEast] = node
+                posWest = (borderWest, y)
                 if posWest not in self.nodes:
                     neighbours = Vectors.findNeigbours(borderWest, y, walls)
                     node = BoardNode(posWest, neighbours, True)
-                    self.positions[position] = node
-                    self.nodes[position] = node
+                    self.positions[posWest] = node
+                    self.nodes[posWest] = node
         # Create edges between nodes
         for node in self.nodes:
             self.nodes[node].createEdges(self.nodes, self.positions, walls)
