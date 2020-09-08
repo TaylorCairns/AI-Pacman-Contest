@@ -17,6 +17,31 @@ import random, time, util
 from game import Directions
 import game
 
+class Vectors:
+    _VECTORS_ = {
+        Directions.NORTH: ( 0,  1),
+        Directions.SOUTH: ( 0, -1),
+        Directions.EAST:  ( 1,  0),
+        Directions.WEST:  (-1,  0),
+        Directions.STOP:  ( 0,  0)
+    }
+
+    def newPosition(x, y, action):
+        vector = Vectors._VECTORS_[action]
+        dx, dy = vector
+        newX = x + dx
+        newY = y + dy
+        return (newX, newY)
+
+    def findNeigbours(x, y, walls):
+        neighbours = []
+        for action in Vectors._VECTORS_:
+            if action != Directions.STOP:
+                newX, newY = Vectors.newPosition(x, y, action)
+                if newX > 0 and newX < walls.width - 1 and newY > 0 and newY < walls.height - 1 and not walls[newX][newY]:
+                    neighbours.append(action)
+        return neighbours
+
 class BoardEdge:
     """
     Represents an edge of the graph of the board
