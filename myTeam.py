@@ -67,6 +67,46 @@ class BoardEdge:
         index = self.positions.index(position)
         return ((self.start, index + 1), (self.end, len(self.positions - index)))
 
+class BoardNode:
+    """
+    Represents a junction or terminal point of the board
+    """
+    def __init__(self, position, exits, isRed):
+        self.position = position
+        self.isRed = isRed
+        self.exits = {}
+        for action in exits:
+            self.exits[action] = None
+
+    def addEdge(self, action, edge):
+        self.exits.update((action, edge))
+
+    def createEdges(self, nodes, positions, walls):
+        for action in self.exits:
+            if self.exits[action] == None:
+                edge = None
+                x, y = self.position
+                newPos = Vectors.newPosition(x, y, action)
+                newAction = action
+                if newPos in nodes:
+                    edge = BoardEdge(nodes[self.position], nodes[newPos])
+                else:
+                    edge = BoardEdge(nodes[self.position])
+                    while newPos not in nodes:
+                        edge.addPosition(newPos)
+                        positions[newPos] = edge
+                        x, y = newPos
+                        neighbours = Vectors.findNeigbours(x, y, walls)
+                        if len(neighbours) > 0:
+                            newAction = neighbours[0]
+                            neighbours.remove(Directions.REVERSE[action])
+                        newPos = Vectors.newPosition(x, y, action)
+                        if len(neighbours) > 0:
+                            newAction = neighbours[0]
+                    edge.addEnd(nodes[newPos])
+                self.addEdge(action, edge)
+                nodes[newPos].addEdge(Directions.REVERSE[newAction], edge)
+
 #################
 # Team creation #
 #################
