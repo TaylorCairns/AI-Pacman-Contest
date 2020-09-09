@@ -65,7 +65,7 @@ class BoardEdge:
 
     def distances(self, position):
         index = self.positions.index(position)
-        return ((self.start, index + 1), (self.end, len(self.positions - index)))
+        return ((self.start, index + 1), (self.end, len(self.positions) - index))
 
 class BoardNode:
     """
