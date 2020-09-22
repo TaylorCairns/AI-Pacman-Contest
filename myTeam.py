@@ -154,12 +154,22 @@ class Hivemind:
     """
     def __init__( self, teamIndexes, isRed ):
         self.teamIndexes = teamIndexes
+        self.enemyIndexes = None
         self.isRed = isRed
         self.board = None
+        self.initial = None
+        self.beliefs = {}
+        self.states = []
 
     def registerInitialState(self, index, gameState):
-        if self.board == None:
+        if self.initial == None:
+            self.initial = gameState
             self.board = BoardGraph(gameState.getWalls())
+            self.enemyIndexes = [x for x in range(gameState.getNumAgents()) if x not in self.teamIndexes]
+            for index in self.enemyIndexes:
+                beliefState = util.Counter()
+                beliefState[gameState.getInitialAgentPosition(index)] = 1.0
+                self.beliefs[index] = beliefState
 
 #################
 # Team creation #
