@@ -171,6 +171,13 @@ class Hivemind:
                 beliefState[gameState.getInitialAgentPosition(index)] = 1.0
                 self.beliefs[index] = beliefState
 
+    def registerNewState(self, index, gameState):
+        lastAgent = self.teamIndexes[self.teamIndexes.index(index) -1 % len(self.teamIndexes)]
+        for i in range(1, gameState.getNumAgents() + 1):
+
+        self.states.append(gameState)
+
+
 #################
 # Team creation #
 #################
@@ -324,5 +331,5 @@ class HivemindAgent(CaptureAgent):
     '''
     You should change this in your own agent.
     '''
-
+    self.hivemind.registerNewState(self.index, gameState)
     return random.choice(actions)
