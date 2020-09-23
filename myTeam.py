@@ -17,6 +17,21 @@ import random, time, util
 from game import Directions
 import game
 
+class ModRange:
+    """A generator class for getting ranges that wrap around modulo boundaries"""
+    def __init__(self, start, end, mod):
+        self.current = start % mod
+        self.end = end
+        self.mod = mod
+
+    def next(self):
+        """Returns the next value from the range or None if range has ended"""
+        value = None
+        if self.current != self.end:
+            value = self.current
+            self.current = self.current + 1 % self.mod
+        return value
+
 class Vectors:
     _VECTORS_ = {
         Directions.NORTH: ( 0,  1),
