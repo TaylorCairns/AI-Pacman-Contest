@@ -48,10 +48,10 @@ class Vectors:
         newY = y + dy
         return (newX, newY)
 
-    def findNeigbours(x, y, walls):
+    def findNeigbours(x, y, walls, allowStop=False):
         neighbours = []
         for action in Vectors._VECTORS_:
-            if action != Directions.STOP:
+            if action != Directions.STOP or allowStop:
                 newX, newY = Vectors.newPosition(x, y, action)
                 if not walls[newX][newY]:
                     neighbours.append(action)
