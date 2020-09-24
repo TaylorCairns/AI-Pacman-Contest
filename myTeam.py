@@ -185,13 +185,17 @@ class Hivemind:
             oldBelief = self.beliefs[agentIndex]
             noiseReading = gameState.getAgentDistances()[agentIndex]
             for belief in oldBelief:
-                x, y = belief
-                actions = Vectors.findNeigbours(x, y, gameState.getWalls(),
-                    allowStop=True)
                 positions = []
-                for action in actions:
-                    pos = Vectors.newPosition(x, y, action)
-                    positions.append((pos, util.manhattanDistance(pos,
+                if hasMoved:
+                    x, y = belief
+                    actions = Vectors.findNeigbours(x, y, gameState.getWalls(),
+                        allowStop=True)
+                    for action in actions:
+                        pos = Vectors.newPosition(x, y, action)
+                        positions.append((pos, util.manhattanDistance(pos,
+                            gameState.getAgentPosition(currentAgent))))
+                else:
+                    positions.append((belief, util.manhattanDistance(belief,
                         gameState.getAgentPosition(currentAgent))))
                 for i in range(len(positions) - 1, -1, -1):
                     if (positions[i][1] < noiseReading -6 or
@@ -200,7 +204,7 @@ class Hivemind:
                 divisor = len(positions)
                 for pos in positions:
                     newBelief[pos[0]] += oldBelief[belief] / divisor
-        newBelief.normalize()            
+        newBelief.normalize()
         return newBelief
 
     def registerInitialState(self, agentIndex, gameState):
@@ -224,6 +228,13 @@ class Hivemind:
             if agent == None:
                 break
             self.beliefs[agent] = self.updateBelief(agent, agentIndex, gameState, hasMoved=True)
+        # Update beliefs about the position of agents who have not moved
+        mRange = ModRange(agentIndex, lastAgent, gameState.getNumAgents())
+        while True:
+            agent = mRange.next()
+            if agent == None:
+                break
+            self.beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
 
         self.states.append(gameState)
 
