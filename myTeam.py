@@ -182,7 +182,25 @@ class Hivemind:
         if agentPosition != None:
             newBelief[agentPosition] = 1.0
         else:
-            pass
+            oldBelief = self.beliefs[agentIndex]
+            noiseReading = gameState.getAgentDistances()[agentIndex]
+            for belief in oldBelief:
+                x, y = belief
+                actions = Vectors.findNeigbours(x, y, gameState.getWalls(),
+                    allowStop=True)
+                positions = []
+                for action in actions:
+                    pos = Vectors.newPosition(x, y, action)
+                    positions.append((pos, util.manhattanDistance(pos,
+                        gameState.getAgentPosition(currentAgent))))
+                for i in range(len(positions) - 1, -1, -1):
+                    if (positions[i][1] < noiseReading -6 or
+                        positions[i][1] > noiseReading + 6):
+                        del positions[i]
+                divisor = len(positions)
+                for pos in positions:
+                    newBelief[pos[0]] += oldBelief[belief] / divisor
+        newBelief.normalize()            
         return newBelief
 
     def registerInitialState(self, agentIndex, gameState):
@@ -198,6 +216,14 @@ class Hivemind:
         # Update belief about position of last agent on team to act
         lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
         self.beliefs[lastAgent] = self.updateBelief(lastAgent, agentIndex, gameState, hasMoved=True)
+        # Update beliefs about the position of enemy agents that have moved since
+        # the last agent on the team moved
+        mRange = ModRange(lastAgent + 1, agentIndex, gameState.getNumAgents())
+        while True:
+            agent = mRange.next()
+            if agent == None:
+                break
+            self.beliefs[agent] = self.updateBelief(agent, agentIndex, gameState, hasMoved=True)
 
         self.states.append(gameState)
 
