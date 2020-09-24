@@ -29,7 +29,7 @@ class ModRange:
         value = None
         if self.current != self.end:
             value = self.current
-            self.current = self.current + 1 % self.mod
+            self.current = (self.current + 1) % self.mod
         return value
 
 class Vectors:
