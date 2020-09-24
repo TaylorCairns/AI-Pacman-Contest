@@ -181,28 +181,43 @@ class Hivemind:
         if agentPosition != None:
             newBelief[agentPosition] = 1.0
         else:
-            oldBelief = self.beliefs[agentIndex]
-            noiseReading = gameState.getAgentDistances()[agentIndex]
-            for belief in oldBelief:
-                positions = []
-                if hasMoved:
-                    x, y = belief
-                    actions = Vectors.findNeigbours(x, y, gameState.getWalls(),
-                        allowStop=True)
-                    for action in actions:
-                        pos = Vectors.newPosition(x, y, action)
-                        positions.append((pos, util.manhattanDistance(pos,
-                            gameState.getAgentPosition(currentAgent))))
+            oldPosition = self.states[-1].getAgentPosition(agentIndex)
+            if oldPosition != None:
+                spottersEaten = []
+                for index in self.teamIndexes:
+                    position = self.states[-1].getAgentPosition(index)
+                    distance = util.manhattanDistance(oldPosition, position)
+                    if distance < 5:
+                        movement = util.manhattanDistance(gameState.getAgentPosition(index), position)
+                        if movement > 1 and distance < 3:
+                            spottersEaten.append(True)
+                        else:
+                            spottersEaten.append(False)
+                if not all(spottersEaten):
+                    newBelief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
                 else:
-                    positions.append((belief, util.manhattanDistance(belief,
-                        gameState.getAgentPosition(currentAgent))))
-                for i in range(len(positions) - 1, -1, -1):
-                    if (positions[i][1] < noiseReading -6 or
-                        positions[i][1] > noiseReading + 6):
-                        del positions[i]
-                divisor = len(positions)
-                for pos in positions:
-                    newBelief[pos[0]] += oldBelief[belief] / divisor
+                    oldBelief = self.beliefs[agentIndex]
+                    noiseReading = gameState.getAgentDistances()[agentIndex]
+                    for belief in oldBelief:
+                        positions = []
+                        if hasMoved:
+                            x, y = belief
+                            actions = Vectors.findNeigbours(x, y,
+                                gameState.getWalls(), allowStop=True)
+                            for action in actions:
+                                pos = Vectors.newPosition(x, y, action)
+                                positions.append((pos, util.manhattanDistance(pos,
+                                    gameState.getAgentPosition(currentAgent))))
+                        else:
+                            positions.append((belief, util.manhattanDistance(belief,
+                                gameState.getAgentPosition(currentAgent))))
+                        for i in range(len(positions) - 1, -1, -1):
+                            if (positions[i][1] < noiseReading -6 or
+                                positions[i][1] > noiseReading + 6):
+                                del positions[i]
+                        divisor = len(positions)
+                        for pos in positions:
+                            newBelief[pos[0]] += oldBelief[belief] / divisor
         newBelief.normalize()
         return newBelief
 
