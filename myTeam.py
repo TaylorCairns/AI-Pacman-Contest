@@ -172,7 +172,6 @@ class Hivemind:
         self.enemyIndexes = None
         self.isRed = isRed
         self.board = None
-        self.initial = None
         self.beliefs = {}
         self.states = []
 
@@ -208,8 +207,8 @@ class Hivemind:
         return newBelief
 
     def registerInitialState(self, agentIndex, gameState):
-        if self.initial == None:
-            self.initial = gameState
+        if len(self.states) == 0:
+            self.states.append(gameState)
             self.board = BoardGraph(gameState.getWalls())
             for agentIndex in range(0, gameState.getNumAgents()):
                 beliefState = util.Counter()
