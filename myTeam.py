@@ -176,19 +176,28 @@ class Hivemind:
         self.beliefs = {}
         self.states = []
 
-    def registerInitialState(self, index, gameState):
+    def updateBelief(self, agentIndex, currentAgent, gameState, hasMoved=False):
+        newBelief = util.Counter()
+        agentPosition = gameState.getAgentPosition(agentIndex)
+        if agentPosition != None:
+            newBelief[agentPosition] = 1.0
+        else:
+            pass
+        return newBelief
+
+    def registerInitialState(self, agentIndex, gameState):
         if self.initial == None:
             self.initial = gameState
             self.board = BoardGraph(gameState.getWalls())
-            self.enemyIndexes = [x for x in range(gameState.getNumAgents()) if x not in self.teamIndexes]
-            for index in self.enemyIndexes:
+            for agentIndex in range(0, gameState.getNumAgents()):
                 beliefState = util.Counter()
-                beliefState[gameState.getInitialAgentPosition(index)] = 1.0
-                self.beliefs[index] = beliefState
+                beliefState[gameState.getInitialAgentPosition(agentIndex)] = 1.0
+                self.beliefs[agentIndex] = beliefState
 
-    def registerNewState(self, index, gameState):
-        lastAgent = self.teamIndexes[self.teamIndexes.index(index) -1 % len(self.teamIndexes)]
-        for i in range(1, gameState.getNumAgents() + 1):
+    def registerNewState(self, agentIndex, gameState):
+        # Update belief about position of last agent on team to act
+        lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
+        self.beliefs[lastAgent] = self.updateBelief(lastAgent, agentIndex, gameState, hasMoved=True)
 
         self.states.append(gameState)
 
