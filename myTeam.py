@@ -237,6 +237,8 @@ class Hivemind:
                 beliefState[gameState.getInitialAgentPosition(agentIndex)] = 1.0
                 self.beliefs[agentIndex] = beliefState
 
+        self.valueIteration(gameState)
+
     def registerNewState(self, agentIndex, gameState):
         # Update belief about position of last agent on team to act
         lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
@@ -259,7 +261,7 @@ class Hivemind:
 
         self.states.append(gameState)
 
-    def valueIteration(self, gameState, interation=100, discount=0.9):
+    def valueIteration(self, gameState, iteration=100, discount=0.9):
         pos = self.board.positions.keys()
         self.posValue = {}
         food = None
