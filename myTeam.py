@@ -82,6 +82,19 @@ class BoardEdge:
         index = self.positions.index(position)
         return ((self.start, index + 1), (self.end, len(self.positions) - index))
 
+    def foodCount(self, foodGrid):
+        count = 0
+        for pos in self.positions:
+            if foodGrid[pos[0]][pos[1]]:
+                count += 1
+        return count
+
+    def hasFood(self, foodGrid):
+        if foodCount(foodGrid) > 0:
+            return True
+        else:
+            return False
+
 class BoardNode:
     """
     Represents a junction or terminal point of the board
@@ -120,6 +133,9 @@ class BoardNode:
                     edge.addEnd(nodes[newPos])
                 self.addEdge(action, edge)
                 nodes[newPos].addEdge(Directions.REVERSE[newAction], edge)
+
+    def hasFood(self, foodGrid):
+        return foodGrid[self.position[0]][self.position[1]]
 
 class BoardGraph:
     """
