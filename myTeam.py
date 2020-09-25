@@ -196,6 +196,7 @@ class Hivemind:
         self.isRed = isRed
         self.board = None
         self.history = []
+        self.posValue = {}
 
     def updateBelief(self, agentIndex, currentAgent, gameState, hasMoved=False):
         newBelief = util.Counter()
@@ -281,7 +282,6 @@ class Hivemind:
 
     def valueIteration(self, gameState, iteration=100, discount=0.9):
         pos = self.board.positions.keys()
-        self.posValue = {}
         food = None
         if self.isRed:
             food = gameState.getBlueFood()
@@ -300,11 +300,11 @@ class Hivemind:
                 x, y = p
                 vPos = Vectors.rePos(x, y, gameState.getWalls())
                 for v in range(len(vPos)):
-                    vPos[v] = posValue[vPos[v]]
+                    vPos[v] = self.posValue[vPos[v]]
 
-                posValue[p] = discount*sum(vPos)/len(vPos) + posValue[p]
+                self.posValue[p] = discount*sum(vPos)/len(vPos)
 
-                
+
 
 
 
@@ -464,4 +464,11 @@ class HivemindAgent(CaptureAgent):
     You should change this in your own agent.
     '''
     self.hivemind.registerNewState(self.index, gameState)
-    return random.choice(actions)
+    pos = gameState.getAgentPosition(self.index)
+    values = []
+    for act in actions:
+        newPos = Vectors.newPosition(pos[0], pos[1], act)
+        value = self.hivemind.posValue[newPos]
+        values.append(value)
+    bestAction = actions[values.index(max(values))]
+    return bestAction
