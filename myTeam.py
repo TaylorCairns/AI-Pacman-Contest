@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -56,7 +56,7 @@ class Vectors:
                 if not walls[newX][newY]:
                     neighbours.append(action)
         return neighbours
-    
+
     def rePos(x, y, walls, allowStop=True):
         actions = Vectors.findNeigbours(x, y, walls, allowStop)
         positions = []
@@ -76,12 +76,6 @@ class BoardEdge:
         self.start = start
         self.end = end
         self.positions = []
-
-    def addEnd(self, end):
-        self.end = end
-
-    def addPosition(self, position):
-        self.positions.append(position)
 
     def weight(self):
         return len(self.positions) + 1
@@ -117,22 +111,22 @@ class BoardNode:
         for action in exits:
             self.exits[action] = None
 
-    def addEdge(self, action, edge):
-        self.exits[action] = edge
-
     def createEdges(self, nodes, positions, walls):
         for action in self.exits:
+            # Check if edge already exists
             if self.exits[action] == None:
                 edge = None
                 x, y = self.position
                 newPos = Vectors.newPosition(x, y, action)
                 newAction = action
                 if newPos in nodes:
+                    # Zero length edge
                     edge = BoardEdge(nodes[self.position], nodes[newPos])
                 else:
+                    # Build out the edge
                     edge = BoardEdge(nodes[self.position])
                     while newPos not in nodes:
-                        edge.addPosition(newPos)
+                        edge.positions.append(newPos)
                         positions[newPos] = edge
                         x, y = newPos
                         neighbours = Vectors.findNeigbours(x, y, walls)
@@ -141,9 +135,10 @@ class BoardNode:
                         if len(neighbours) > 0:
                             newAction = neighbours[0]
                         newPos = Vectors.newPosition(x, y, newAction)
-                    edge.addEnd(nodes[newPos])
-                self.addEdge(action, edge)
-                nodes[newPos].addEdge(Directions.REVERSE[newAction], edge)
+                    edge.end = nodes[newPos]
+                # Add the edges to the nodes
+                self.exits[action] = edge
+                nodes[newPos].exits[Directions.REVERSE[newAction]] = edge
 
     def hasFood(self, foodGrid):
         return foodGrid[self.position[0]][self.position[1]]
@@ -202,16 +197,52 @@ class Hivemind:
         self.history = []
         self.posValue = {}
 
+    def registerInitialState(self, agentIndex, gameState):
+        if len(self.history) == 0:
+            self.board = BoardGraph(gameState.getWalls())
+            beliefs = {}
+            for agentIndex in range(0, gameState.getNumAgents()):
+                belief = util.Counter()
+                belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
+                beliefs[agentIndex] = belief
+            self.history.append((gameState, beliefs))
+        self.valueIteration(gameState)
+
+    def registerNewState(self, agentIndex, gameState):
+        beliefs = {}
+        # Update belief about position of last agent on team to act
+        lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
+        beliefs[lastAgent] = self.updateBelief(lastAgent, agentIndex, gameState, hasMoved=True)
+        # Update beliefs about the position of enemy agents that have moved since
+        # the last agent on the team moved
+        mRange = ModRange(lastAgent + 1, agentIndex, gameState.getNumAgents())
+        while True:
+            agent = mRange.next()
+            if agent == None:
+                break
+            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState, hasMoved=True)
+        # Update beliefs about the position of agents who have not moved
+        mRange = ModRange(agentIndex, lastAgent, gameState.getNumAgents())
+        while True:
+            agent = mRange.next()
+            if agent == None:
+                break
+            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
+        self.history.append((gameState, beliefs))
+
     def updateBelief(self, agentIndex, currentAgent, gameState, hasMoved=False):
         newBelief = util.Counter()
         agentPosition = gameState.getAgentPosition(agentIndex)
         if agentPosition != None:
+            # We can see the agent so just store its position
             newBelief[agentPosition] = 1.0
         else:
+            # We can't see the agent time to investigate
             oldState = self.history[-1]
             oldPosition = oldState[0].getAgentPosition(agentIndex)
             spottersEaten = []
             if oldPosition != None:
+                # We could see the agent last time
                 for index in self.teamIndexes:
                     position = oldState[0].getAgentPosition(index)
                     distance = util.manhattanDistance(oldPosition, position)
@@ -222,8 +253,10 @@ class Hivemind:
                         else:
                             spottersEaten.append(False)
             if not all(spottersEaten):
+                # One of our agents should still be able to see them so the must be at spawn
                 newBelief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
             else:
+                # We couldn't see the agent the last time or we got sent back to spawn
                 oldBelief = oldState[1][agentIndex]
                 noiseReading = gameState.getAgentDistances()[agentIndex]
                 for belief in oldBelief:
@@ -249,41 +282,6 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-    def registerInitialState(self, agentIndex, gameState):
-        if len(self.history) == 0:
-            self.board = BoardGraph(gameState.getWalls())
-            beliefs = {}
-            for agentIndex in range(0, gameState.getNumAgents()):
-                belief = util.Counter()
-                belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
-                beliefs[agentIndex] = belief
-            self.history.append((gameState, beliefs))
-
-        self.valueIteration(gameState)
-
-    def registerNewState(self, agentIndex, gameState):
-        beliefs = {}
-        # Update belief about position of last agent on team to act
-        lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
-        beliefs[lastAgent] = self.updateBelief(lastAgent, agentIndex, gameState, hasMoved=True)
-        # Update beliefs about the position of enemy agents that have moved since
-        # the last agent on the team moved
-        mRange = ModRange(lastAgent + 1, agentIndex, gameState.getNumAgents())
-        while True:
-            agent = mRange.next()
-            if agent == None:
-                break
-            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState, hasMoved=True)
-        # Update beliefs about the position of agents who have not moved
-        mRange = ModRange(agentIndex, lastAgent, gameState.getNumAgents())
-        while True:
-            agent = mRange.next()
-            if agent == None:
-                break
-            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
-
-        self.history.append((gameState, beliefs))
-
     def valueIteration(self, gameState, iteration=100, discount=0.9):
         pos = self.board.positions.keys()
         food = None
@@ -298,21 +296,13 @@ class Hivemind:
             else:
                 value = 0
             self.posValue[p] = value
-
         for i in range(iteration):
             for p in pos:
                 x, y = p
                 vPos = Vectors.rePos(x, y, gameState.getWalls())
                 for v in range(len(vPos)):
                     vPos[v] = self.posValue[vPos[v]]
-
                 self.posValue[p] = discount*sum(vPos)/len(vPos)
-
-
-
-
-
-
 
 #################
 # Team creation #
@@ -343,64 +333,13 @@ def createTeam(firstIndex, secondIndex, isRed,
 # Agents #
 ##########
 
-class DummyAgent(CaptureAgent):
-  """
-  A Dummy agent to serve as an example of the necessary agent structure.
-  You should look at baselineTeam.py for more details about how to
-  create an agent as this is the bare minimum.
-  """
-
-  def registerInitialState(self, gameState):
-    """
-    This method handles the initial setup of the
-    agent to populate useful fields (such as what team
-    we're on).
-
-    A distanceCalculator instance caches the maze distances
-    between each pair of positions, so your agents can use:
-    self.distancer.getDistance(p1, p2)
-
-    IMPORTANT: This method may run for at most 15 seconds.
-    """
-
-    '''
-    Make sure you do not delete the following line. If you would like to
-    use Manhattan distances instead of maze distances in order to save
-    on initialization time, please take a look at
-    CaptureAgent.registerInitialState in captureAgents.py.
-    '''
-    CaptureAgent.registerInitialState(self, gameState)
-
-    '''
-    Your initialization code goes here, if you need any.
-    '''
-
-
-  def chooseAction(self, gameState):
-    """
-    Picks among actions randomly.
-    """
-    actions = gameState.getLegalActions(self.index)
-
-    '''
-    You should change this in your own agent.
-    '''
-
-    return random.choice(actions)
-
 class HivemindAgent(CaptureAgent):
-  """
-  A Dummy agent to serve as an example of the necessary agent structure.
-  You should look at baselineTeam.py for more details about how to
-  create an agent as this is the bare minimum.
-  """
 
   def __init__( self, index, hivemind , timeForComputing = .1):
     """
     Lists several variables you can query:
     self.index = index for this agent
     self.red = true if you're on the red team, false otherwise
-    self.agentsOnTeam = a list of agent objects that make up your team
     self.distancer = distance calculator (contest code provides this)
     self.observationHistory = list of GameState objects that correspond
         to the sequential order of states that have occurred so far this game
@@ -413,17 +352,11 @@ class HivemindAgent(CaptureAgent):
     # Whether or not you're on the red team
     self.red = None
 
-    # Agent objects controlling you and your teammates
-    self.agentsOnTeam = None
-
     # Maze distance calculator
     self.distancer = None
 
     # A history of observations
     self.observationHistory = []
-
-    # Time to spend each turn on computing maze distances
-    self.timeForComputing = timeForComputing
 
     # Access to the graphics
     self.display = None
@@ -453,20 +386,8 @@ class HivemindAgent(CaptureAgent):
     CaptureAgent.registerInitialState(self, gameState)
     self.hivemind.registerInitialState(self.index, gameState)
 
-    '''
-    Your initialization code goes here, if you need any.
-    '''
-
-
   def chooseAction(self, gameState):
-    """
-    Picks among actions randomly.
-    """
     actions = gameState.getLegalActions(self.index)
-
-    '''
-    You should change this in your own agent.
-    '''
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
     values = []
