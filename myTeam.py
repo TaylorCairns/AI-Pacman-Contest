@@ -56,6 +56,13 @@ class Vectors:
                 if not walls[newX][newY]:
                     neighbours.append(action)
         return neighbours
+    
+    def rePos(x, y, walls, allowStop=True):
+        actions = Vectors.findNeigbours(x, y, walls, allowStop)
+        positions = []
+        for a in actions:
+            positions.append(Vectors.newPosition(x, y, a))
+        return positions
 
 class BoardEdge:
     """
