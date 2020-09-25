@@ -64,6 +64,10 @@ class Vectors:
             positions.append(Vectors.newPosition(x, y, a))
         return positions
 
+Vectors.newPosition = staticmethod(Vectors.newPosition)
+Vectors.findNeigbours = staticmethod(Vectors.findNeigbours)
+Vectors.rePos = staticmethod(Vectors.rePos)
+
 class BoardEdge:
     """
     Represents an edge of the graph of the board
