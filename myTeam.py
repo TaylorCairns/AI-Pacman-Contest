@@ -259,6 +259,36 @@ class Hivemind:
 
         self.states.append(gameState)
 
+    def valueIteration(self, gameState, interation=100, discount=0.9):
+        pos = self.board.positions.keys()
+        self.posValue = {}
+        food = None
+        if self.isRed:
+            food = gameState.getBlueFood()
+        else:
+            food = gameState.getRedFood()
+        for p in pos:
+            x, y = p
+            if food[x][y]:
+                value = 1
+            else:
+                value = 0
+            self.posValue[p] = value
+
+        for i in range(iteration):
+            for p in pos:
+                x, y = p
+                vPos = Vectors.rePos(x, y, gameState.getWalls())
+                for v in range(len(vPos)):
+                    vPos[v] = posValue[vPos[v]]
+
+                posValue[p] = discount*sum(vPos)/len(vPos) + posValue[p]
+
+                
+
+
+
+
 
 #################
 # Team creation #
