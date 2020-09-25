@@ -56,6 +56,13 @@ class Vectors:
                 if not walls[newX][newY]:
                     neighbours.append(action)
         return neighbours
+    
+    def rePos(x, y, walls, allowStop=True):
+        actions = Vectors.findNeigbours(x, y, walls, allowStop)
+        positions = []
+        for a in actions:
+            positions.append(Vectors.newPosition(x, y, a))
+        return positions
 
 class BoardEdge:
     """
@@ -247,6 +254,8 @@ class Hivemind:
                 beliefs[agentIndex] = belief
             self.history.append((gameState, beliefs))
 
+        self.valueIteration(gameState)
+
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
         # Update belief about position of last agent on team to act
@@ -269,6 +278,36 @@ class Hivemind:
             beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
 
         self.history.append((gameState, beliefs))
+
+    def valueIteration(self, gameState, iteration=100, discount=0.9):
+        pos = self.board.positions.keys()
+        self.posValue = {}
+        food = None
+        if self.isRed:
+            food = gameState.getBlueFood()
+        else:
+            food = gameState.getRedFood()
+        for p in pos:
+            x, y = p
+            if food[x][y]:
+                value = 1
+            else:
+                value = 0
+            self.posValue[p] = value
+
+        for i in range(iteration):
+            for p in pos:
+                x, y = p
+                vPos = Vectors.rePos(x, y, gameState.getWalls())
+                for v in range(len(vPos)):
+                    vPos[v] = posValue[vPos[v]]
+
+                posValue[p] = discount*sum(vPos)/len(vPos) + posValue[p]
+
+                
+
+
+
 
 
 #################
