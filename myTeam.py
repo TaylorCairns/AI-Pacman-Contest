@@ -317,8 +317,9 @@ class Hivemind:
                 vPos = Vectors.rePos(x, y, gameState.getWalls())
                 for v in range(len(vPos)):
                     vPos[v] = self.posValue[vPos[v]]
-                newValues[p] = discount*sum(vPos)/len(vPos) + self.posValue[p]
+                newValues[p] = discount*max(vPos) + self.posValue[p]
             self.posValue = newValues
+
 
 #################
 # Team creation #
