@@ -206,7 +206,7 @@ class Hivemind:
                 belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
                 beliefs[agentIndex] = belief
             self.history.append((gameState, beliefs))
-        self.valueIteration(gameState)
+            self.valueIteration(gameState)
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
