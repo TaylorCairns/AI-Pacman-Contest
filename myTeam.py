@@ -214,8 +214,10 @@ class Hivemind:
             self.history.append((gameState, beliefs))
             foodGrid = None
             if self.isRed:
+                self.enemyIndexes = gameState.getBlueTeamIndices()
                 foodGrid = gameState.getBlueFood()
             else:
+                self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
             self.policies = ValueIterations(self.board, foodGrid, beliefs, self.enemyIndexes)
 
@@ -239,6 +241,7 @@ class Hivemind:
             if agent == None:
                 break
             beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
+        self.policies.updateEnemyPosVal(beliefs)
         # Update food values
         lastObservation = self.history[-1]
         lastState = lastObservation[0]
@@ -456,8 +459,7 @@ class ValueIterations:
         self.enemyIndexes = enemyIndexes
         self.board = board
         self.enemyPosValues = {}
-        for agent in self.enemyIndexes:
-            self.enemyPosValues[agent] = self.calcEnemyPosValue(beliefs[agent])
+        self.updateEnemyPosVal(beliefs)
         self.foodValues = {}
         self.updateFoodValues(foodGrid)
 
@@ -527,3 +529,7 @@ class ValueIterations:
                 newValues[p] = discount*max(values) + enemyValues[p]
             enemyValues = newValues
         return enemyValues
+
+    def updateEnemyPosVal(self, beliefs):
+        for agent in self.enemyIndexes:
+            self.enemyPosValues[agent] = self.calcEnemyPosValue(beliefs[agent])
