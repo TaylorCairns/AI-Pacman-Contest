@@ -402,25 +402,37 @@ class HivemindAgent(CaptureAgent):
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-
+    foodCarry = gameState.getAgentState(self.index).numCarrying
+    returnValues = self.hivemind.policies.returnHome
     board = self.hivemind.board
-    boardValues = self.hivemind.policies.foodValues
+    foodValues = self.hivemind.policies.foodValues
     boardFeature = board.positions[pos]
-    if boardFeature.isNode:
+    if boardFeature.isNode and foodCarry < 2:
         self.lastNode = boardFeature
         actions = ['Stop']
-        values = [boardValues[pos]]
+        values = [foodValues[pos]]
         for exit in boardFeature.exits:
             newPos = boardFeature.exits[exit].end(boardFeature).position
             actions.append(exit)
-            values.append(boardValues[newPos])
+            values.append(foodValues[newPos])
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        action = random.choice(bestActions)
+    elif boardFeature.isNode:
+        self.lastNode = boardFeature
+        actions = ['Stop']
+        values = [returnValues[pos]]
+        for exit in boardFeature.exits:
+            newPos = boardFeature.exits[exit].end(boardFeature).position
+            actions.append(exit)
+            values.append(returnValues[newPos])
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
         action = random.choice(bestActions)
     else:
         if self.lastNode is None:
-            startValue = boardValues[boardFeature.ends[0].position]
-            endValue = boardValues[boardFeature.ends[1].position]
+            startValue = foodValues[boardFeature.ends[0].position]
+            endValue = foodValues[boardFeature.ends[1].position]
             if startValue > endValue:
                 self.lastNode = boardFeature.ends[1]
             else:
@@ -519,7 +531,7 @@ class ValueIterations:
         for pos in self.board.nodes:
             node = self.board.nodes[pos]
             if isRed == node.isRed:
-                value = 1
+                value = 2
             else:
                 value = 0
             values[pos] = value
