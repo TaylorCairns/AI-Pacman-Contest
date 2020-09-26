@@ -318,13 +318,14 @@ class Hivemind:
                 newValues[p] = discount*sum(vPos)/len(vPos)
             self.posValue = newValues
 
-    def opponentsFoodBoardIteration(self, board, foodGrid, iteration=100, discount=0.9):
+    def opponentsFoodBoardIteration(self, board, foodGrid, iteration=50, discount=0.9):
         # Set initial values
+        foodValue = 10
         values = {}
         for pos in board.nodes:
             node = board.nodes[pos]
             if foodGrid[pos[0]][pos[1]]:
-                value = 1
+                value = foodValue
             else:
                 value = 0
             values[pos] = value
@@ -334,12 +335,14 @@ class Hivemind:
             for pos in board.nodes:
                 node = board.nodes[pos]
                 value = values[pos]
-                valueList = []
+                valueList = [discount * value + value]
                 for exit in node.exits:
                     edge = node.exits[exit]
-                    end = edge.end(node)
-                    edgeValue = edge.foodCount(foodGrid) / edge.weight()
-                    valueList.append(discount * (values[end.position] + edgeValue) + value)
+                    endValue = values[edge.end(node).position]
+                    edgeValue = edge.foodCount(foodGrid) * foodValue
+                    weightedDiscount = discount ** edge.weight()
+                    totalValue = weightedDiscount * (endValue + edgeValue) + value
+                    valueList.append(totalValue)
                 newValues[pos] = max(valueList)
             values = newValues
         return values
@@ -403,6 +406,7 @@ class HivemindAgent(CaptureAgent):
 
     # Hivemind for decision purposes
     self.hivemind = hivemind
+    self.lastNode = None
 
   def registerInitialState(self, gameState):
     """
@@ -439,22 +443,29 @@ class HivemindAgent(CaptureAgent):
     return bestAction
 
     board = self.hivemind.board
-    values = self.hivemind.boardValues
+    boardValues = self.hivemind.boardValues
     boardFeature = board.positions[pos]
-    action = 'Stop'
     if boardFeature.isNode:
-        value = values[pos]
+        self.lastNode = boardFeature
+        actions = ['Stop']
+        values = [boardValues[pos]]
         for exit in boardFeature.exits:
             newPos = boardFeature.exits[exit].end(boardFeature).position
-            newValue = values[newPos]
-            if newValue >= value:
-                action = exit
-                value = newValue
+            actions.append(exit)
+            values.append(boardValues[newPos])
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        action = random.choice(bestActions)
     else:
-        startValue = values[boardFeature.ends[0].position]
-        endValue = values[boardFeature.ends[1].position]
+        if self.lastNode is None:
+            startValue = boardValues[boardFeature.ends[0].position]
+            endValue = boardValues[boardFeature.ends[1].position]
+            if startValue > endValue:
+                self.lastNode = boardFeature.ends[1]
+            else:
+                self.lastNode = boardFeature.ends[0]
         posIndex = boardFeature.positions.index(pos)
-        if startValue > endValue:
+        if self.lastNode is boardFeature.ends[1]:
             action = Directions.REVERSE[boardFeature.actions[posIndex]]
         else:
             action = boardFeature.actions[posIndex + 1]
