@@ -484,3 +484,22 @@ class HivemindAgent(CaptureAgent):
         else:
             action = boardFeature.actions[posIndex + 1]
     return action
+
+class valueIterations:
+    def enemyPosValueIteration(self, gameState, beliefState, iteration=100, discount=0.9):
+        pos = self.board.positions.keys()
+        agentPenalty = -100
+        enemyValues = {}
+        for p in pos:
+            enemyValues[p] = agentPenalty*beliefState[p]
+
+        for i in range(iteration):
+            newValues = {}
+            for p in pos:
+                x, y = p
+                vPos = Vectors.rePos(x, y, gameState.getWalls())
+                for v in range(len(vPos)):
+                    vPos[v] = self.posValue[vPos[v]]
+                newValues[p] = discount*max(vPos) + enemyValues[p]
+            enemyValues = newValues
+        return enemyValues
