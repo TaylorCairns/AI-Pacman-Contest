@@ -488,21 +488,48 @@ class HivemindAgent(CaptureAgent):
             action = boardFeature.actions[posIndex + 1]
     return action
 
-class valueIterations:
-    def enemyPosValueIteration(self, gameState, beliefState, iteration=100, discount=0.9):
-        pos = self.board.positions.keys()
+class ValueIterations:
+    def __init__( self, board, foodGrid, beliefs, enemyIndexes ):
+        self.enemyIndexes = enemyIndexes
+        self.board = board
+        self.enemyPosValues = {}
+        for agent in self.enemyIndexes:
+            self.enemyPosValues[agent] = self.calcEnemyPosValue(beliefs[agent])
+
+    def calcEnemyPosValue(self, beliefState, iteration=50, discount=0.9):
         agentPenalty = -100
         enemyValues = {}
-        for p in pos:
+        for p in self.board.positions:
             enemyValues[p] = agentPenalty*beliefState[p]
 
         for i in range(iteration):
             newValues = {}
-            for p in pos:
-                x, y = p
-                vPos = Vectors.rePos(x, y, gameState.getWalls())
-                for v in range(len(vPos)):
-                    vPos[v] = self.posValue[vPos[v]]
-                newValues[p] = discount*max(vPos) + enemyValues[p]
+            for p in self.board.positions:
+                boardFeature = self.board.positions[p]
+                values = [enemyValues[p]]
+                if boardFeature.isNode:
+                    for exit in boardFeature.exits:
+                        edge = boardFeature.exits[exit]
+                        newPos = None
+                        if edge.weight() == 1:
+                            newPos = edge.end(boardFeature).position
+                        else:
+                            if boardFeature is edge.ends[0]:
+                                newPos = edge.positions[0]
+                            else:
+                                newPos = edge.positions[-1]
+                        values.append(enemyValues[newPos])
+                else:
+                    index = boardFeature.positions.index(p)
+                    length = len(boardFeature.positions)
+                    if index - 1 < 0:
+                        values.append(enemyValues[boardFeature.ends[0].position])
+                    else:
+                        values.append(enemyValues[boardFeature.positions[index - 1]])
+                    if index + 1 < length:
+                        values.append(enemyValues[boardFeature.positions[index + 1]])
+                    else:
+                        values.append(enemyValues[boardFeature.ends[1].position])
+                newValues[p] = discount*max(values) + enemyValues[p]
             enemyValues = newValues
         return enemyValues
