@@ -109,6 +109,7 @@ class BoardNode:
     Represents a junction or terminal point of the board
     """
     def __init__(self, position, exits, isRed):
+        self.isNode = True
         self.position = position
         self.isRed = isRed
         self.exits = {}
@@ -122,30 +123,30 @@ class BoardNode:
                 edge = None
                 x, y = self.position
                 newPos = Vectors.newPosition(x, y, action)
-                newAction = action
                 if newPos in nodes:
                     # Zero length edge
-                    edge = BoardEdge(nodes[self.position], nodes[newPos])
+                    edge = BoardEdge(action, nodes[self.position], nodes[newPos])
                 else:
                     # Build out the edge
-                    edge = BoardEdge(nodes[self.position])
+                    edge = BoardEdge(action, nodes[self.position])
                     while newPos not in nodes:
                         edge.positions.append(newPos)
                         positions[newPos] = edge
                         x, y = newPos
                         neighbours = Vectors.findNeigbours(x, y, walls)
-                        if Directions.REVERSE[newAction] in neighbours:
-                            neighbours.remove(Directions.REVERSE[newAction])
+                        if Directions.REVERSE[edge.actions[-1]] in neighbours:
+                            neighbours.remove(Directions.REVERSE[edge.actions[-1]])
                         if len(neighbours) > 0:
-                            newAction = neighbours[0]
-                        newPos = Vectors.newPosition(x, y, newAction)
-                    edge.end = nodes[newPos]
+                            edge.actions.append(neighbours[0])
+                        newPos = Vectors.newPosition(x, y, edge.actions[-1])
+                    edge.ends[1] = nodes[newPos]
                 # Add the edges to the nodes
                 self.exits[action] = edge
-                nodes[newPos].exits[Directions.REVERSE[newAction]] = edge
+                nodes[newPos].exits[Directions.REVERSE[edge.actions[-1]]] = edge
 
     def hasFood(self, foodGrid):
-        return foodGrid[self.position[0]][self.position[1]]
+        x, y = self.position
+        return foodGrid[x][y]
 
 class BoardGraph:
     """
