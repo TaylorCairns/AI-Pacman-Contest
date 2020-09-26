@@ -57,7 +57,7 @@ class Vectors:
                     neighbours.append(action)
         return neighbours
 
-    def rePos(x, y, walls, allowStop=True):
+    def rePos(x, y, walls, allowStop=False):
         actions = Vectors.findNeigbours(x, y, walls, allowStop)
         positions = []
         for a in actions:
@@ -228,6 +228,20 @@ class Hivemind:
             if agent == None:
                 break
             beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
+        # Update food values
+        lastObservation = self.history[-1]
+        lastState = lastObservation[0]
+        lastFoodCount = 0
+        currFoodCount = 0
+        if self.isRed:
+            lastFoodCount = len(lastState.getBlueFood().asList())
+            currFoodCount = len(gameState.getBlueFood().asList())
+        else:
+            lastFoodCount = len(lastState.getRedFood().asList())
+            currFoodCount = len(gameState.getRedFood().asList())
+        if currFoodCount != lastFoodCount:
+            self.valueIteration(gameState)
+        #Update history
         self.history.append((gameState, beliefs))
 
     def updateBelief(self, agentIndex, currentAgent, gameState, hasMoved=False):
@@ -303,7 +317,7 @@ class Hivemind:
                 vPos = Vectors.rePos(x, y, gameState.getWalls())
                 for v in range(len(vPos)):
                     vPos[v] = self.posValue[vPos[v]]
-                newValues[p] = discount*sum(vPos)/len(vPos)
+                newValues[p] = discount*sum(vPos)/len(vPos) + self.posValue[p]
             self.posValue = newValues
 
 #################
