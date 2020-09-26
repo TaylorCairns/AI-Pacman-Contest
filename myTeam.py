@@ -89,7 +89,7 @@ class BoardEdge:
 
     def distances(self, position):
         index = self.positions.index(position)
-        return ((self.self.ends[0], index + 1), (self.ends[1], len(self.positions) - index))
+        return ((self.ends[0], index + 1), (self.ends[1], len(self.positions) - index))
 
     def foodCount(self, foodGrid):
         count = 0
@@ -99,7 +99,7 @@ class BoardEdge:
         return count
 
     def hasFood(self, foodGrid):
-        if foodCount(foodGrid) > 0:
+        if self.foodCount(foodGrid) > 0:
             return True
         else:
             return False
@@ -200,7 +200,6 @@ class Hivemind:
         self.isRed = isRed
         self.board = None
         self.history = []
-        self.posValue = {}
         self.policies = None
 
     def registerInitialState(self, agentIndex, gameState):
@@ -313,29 +312,8 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-    def valueIteration(self, gameState, iteration=100, discount=0.9):
-        pos = self.board.positions.keys()
-        food = None
-        if self.isRed:
-            food = gameState.getBlueFood()
-        else:
-            food = gameState.getRedFood()
-        for p in pos:
-            x, y = p
-            if food[x][y]:
-                value = 1
-            else:
-                value = 0
-            self.posValue[p] = value
-        for i in range(iteration):
-            newValues = {}
-            for p in pos:
-                x, y = p
-                vPos = Vectors.rePos(x, y, gameState.getWalls())
-                for v in range(len(vPos)):
-                    vPos[v] = self.posValue[vPos[v]]
-                newValues[p] = discount*max(vPos) + self.posValue[p]
-            self.posValue = newValues
+
+
 
 
 #################
