@@ -203,6 +203,7 @@ class Hivemind:
         self.posValue = {}
         self.boardValues = {}
 
+        self.enemyPosValue = {}
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
             self.board = BoardGraph(gameState.getWalls())
@@ -220,6 +221,8 @@ class Hivemind:
                 foodGrid = gameState.getRedFood()
             self.boardValues = self.opponentsFoodBoardIteration(self.board, foodGrid)
 
+            for index in enemyIndexes:
+                self.enemyPosValue[index] = self.valueIterations.enemyPosValueIteration(gameState, beliefs[index])
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
         # Update belief about position of last agent on team to act
