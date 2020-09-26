@@ -218,7 +218,7 @@ class Hivemind:
             else:
                 self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
-            self.policies = ValueIterations(self.board, foodGrid, beliefs, self.enemyIndexes)
+            self.policies = ValueIterations(self.board, foodGrid, beliefs, self.enemyIndexes, self.isRed)
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
@@ -433,11 +433,13 @@ class HivemindAgent(CaptureAgent):
     return action
 
 class ValueIterations:
-    def __init__( self, board, foodGrid, beliefs, enemyIndexes ):
+    def __init__( self, board, foodGrid, beliefs, enemyIndexes, isRed ):
         self.enemyIndexes = enemyIndexes
         self.board = board
         self.enemyPosValues = {}
         self.updateEnemyPosVal(beliefs)
+        self.returnHome = {}
+        self.updateReturnHome(isRed)
         self.foodValues = {}
         self.updateFoodValues(foodGrid)
 
@@ -511,3 +513,29 @@ class ValueIterations:
     def updateEnemyPosVal(self, beliefs):
         for agent in self.enemyIndexes:
             self.enemyPosValues[agent] = self.calcEnemyPosValue(beliefs[agent])
+
+    def updateReturnHome(self, isRed, iteration=50, discount=0.9):
+        values = {}
+        for pos in self.board.nodes:
+            node = self.board.nodes[pos]
+            if isRed == node.isRed:
+                value = 1
+            else:
+                value = 0
+            values[pos] = value
+        # Iteration loop
+        for i in range(iteration):
+            newValues = {}
+            for pos in self.board.nodes:
+                node = self.board.nodes[pos]
+                value = values[pos]
+                valueList = [discount * value + value]
+                for exit in node.exits:
+                    edge = node.exits[exit]
+                    endValue = values[edge.end(node).position]
+                    weightedDiscount = discount ** edge.weight()
+                    totalValue = weightedDiscount * endValue + value
+                    valueList.append(totalValue)
+                newValues[pos] = max(valueList)
+            values = newValues
+        self.returnHome = values
