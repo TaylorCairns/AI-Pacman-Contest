@@ -201,6 +201,7 @@ class Hivemind:
         self.board = None
         self.history = []
         self.posValue = {}
+        self.boardValues = {}
 
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
@@ -212,6 +213,12 @@ class Hivemind:
                 beliefs[agentIndex] = belief
             self.history.append((gameState, beliefs))
             self.valueIteration(gameState)
+            foodGrid = None
+            if self.isRed:
+                foodGrid = gameState.getBlueFood()
+            else:
+                foodGrid = gameState.getRedFood()
+            self.boardValues = self.opponentsFoodBoardIteration(self.board, foodGrid)
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
@@ -310,6 +317,32 @@ class Hivemind:
                     vPos[v] = self.posValue[vPos[v]]
                 newValues[p] = discount*sum(vPos)/len(vPos)
             self.posValue = newValues
+
+    def opponentsFoodBoardIteration(self, board, foodGrid, iteration=100, discount=0.9):
+        # Set initial values
+        values = {}
+        for pos in board.nodes:
+            node = board.nodes[pos]
+            if foodGrid[pos[0]][pos[1]]:
+                value = 1
+            else:
+                value = 0
+            values[pos] = value
+        # Iteration loop
+        for i in range(iteration):
+            newValues = {}
+            for pos in board.nodes:
+                node = board.nodes[pos]
+                value = values[pos]
+                valueList = []
+                for exit in node.exits:
+                    edge = node.exits[exit]
+                    end = edge.end(node)
+                    edgeValue = edge.foodCount(foodGrid) / edge.weight()
+                    valueList.append(discount * (values[end.position] + edgeValue) + value)
+                newValues[pos] = max(valueList)
+            values = newValues
+        return values
 
 #################
 # Team creation #
