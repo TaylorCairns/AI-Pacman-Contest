@@ -72,20 +72,24 @@ class BoardEdge:
     """
     Represents an edge of the graph of the board
     """
-    def __init__(self, start, end=None):
-        self.start = start
-        self.end = end
+    def __init__(self, action, start, end=None):
+        self.isNode = False
+        self.ends = [start, end]
         self.positions = []
+        self.actions = [action]
 
     def weight(self):
         return len(self.positions) + 1
 
-    def ends(self):
-        return (self.start, self.end)
+    def end(self, node):
+        if node != self.ends[0]:
+            return self.ends[0]
+        else:
+            return self.ends[1]
 
     def distances(self, position):
         index = self.positions.index(position)
-        return ((self.start, index + 1), (self.end, len(self.positions) - index))
+        return ((self.self.ends[0], index + 1), (self.ends[1], len(self.positions) - index))
 
     def foodCount(self, foodGrid):
         count = 0
