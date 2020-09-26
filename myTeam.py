@@ -297,12 +297,14 @@ class Hivemind:
                 value = 0
             self.posValue[p] = value
         for i in range(iteration):
+            newValues = {}
             for p in pos:
                 x, y = p
                 vPos = Vectors.rePos(x, y, gameState.getWalls())
                 for v in range(len(vPos)):
                     vPos[v] = self.posValue[vPos[v]]
-                self.posValue[p] = discount*sum(vPos)/len(vPos)
+                newValues[p] = discount*sum(vPos)/len(vPos)
+            self.posValue = newValues
 
 #################
 # Team creation #
