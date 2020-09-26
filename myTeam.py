@@ -334,34 +334,6 @@ class Hivemind:
                 newValues[p] = discount*max(vPos) + self.posValue[p]
             self.posValue = newValues
 
-    def opponentsFoodBoardIteration(self, board, foodGrid, iteration=50, discount=0.9):
-        # Set initial values
-        foodValue = 10
-        values = {}
-        for pos in board.nodes:
-            node = board.nodes[pos]
-            if foodGrid[pos[0]][pos[1]]:
-                value = foodValue
-            else:
-                value = 0
-            values[pos] = value
-        # Iteration loop
-        for i in range(iteration):
-            newValues = {}
-            for pos in board.nodes:
-                node = board.nodes[pos]
-                value = values[pos]
-                valueList = [discount * value + value]
-                for exit in node.exits:
-                    edge = node.exits[exit]
-                    endValue = values[edge.end(node).position]
-                    edgeValue = edge.foodCount(foodGrid) * foodValue
-                    weightedDiscount = discount ** edge.weight()
-                    totalValue = weightedDiscount * (endValue + edgeValue) + value
-                    valueList.append(totalValue)
-                newValues[pos] = max(valueList)
-            values = newValues
-        return values
 
 #################
 # Team creation #
@@ -494,6 +466,37 @@ class ValueIterations:
         self.enemyPosValues = {}
         for agent in self.enemyIndexes:
             self.enemyPosValues[agent] = self.calcEnemyPosValue(beliefs[agent])
+        self.foodValues = {}
+        self.updateFoodValues(foodGrid)
+
+    def updateFoodValues(self, foodGrid, iteration=50, discount=0.9):
+        # Set initial values
+        foodValue = 10
+        values = {}
+        for pos in self.board.nodes:
+            node = self.board.nodes[pos]
+            if foodGrid[pos[0]][pos[1]]:
+                value = foodValue
+            else:
+                value = 0
+            values[pos] = value
+        # Iteration loop
+        for i in range(iteration):
+            newValues = {}
+            for pos in self.board.nodes:
+                node = self.board.nodes[pos]
+                value = values[pos]
+                valueList = [discount * value + value]
+                for exit in node.exits:
+                    edge = node.exits[exit]
+                    endValue = values[edge.end(node).position]
+                    edgeValue = edge.foodCount(foodGrid) * foodValue
+                    weightedDiscount = discount ** edge.weight()
+                    totalValue = weightedDiscount * (endValue + edgeValue) + value
+                    valueList.append(totalValue)
+                newValues[pos] = max(valueList)
+            values = newValues
+        self.foodValues = values
 
     def calcEnemyPosValue(self, beliefState, iteration=50, discount=0.9):
         agentPenalty = -100
