@@ -201,7 +201,6 @@ class Hivemind:
         self.board = None
         self.history = []
         self.posValue = {}
-        self.boardValues = {}
         self.policies = None
 
     def registerInitialState(self, agentIndex, gameState):
@@ -213,13 +212,11 @@ class Hivemind:
                 belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
                 beliefs[agentIndex] = belief
             self.history.append((gameState, beliefs))
-            self.valueIteration(gameState)
             foodGrid = None
             if self.isRed:
                 foodGrid = gameState.getBlueFood()
             else:
                 foodGrid = gameState.getRedFood()
-            self.boardValues = self.opponentsFoodBoardIteration(self.board, foodGrid)
             self.policies = ValueIterations(self.board, foodGrid, beliefs, self.enemyIndexes)
 
     def registerNewState(self, agentIndex, gameState):
@@ -247,14 +244,17 @@ class Hivemind:
         lastState = lastObservation[0]
         lastFoodCount = 0
         currFoodCount = 0
+        foodGrid = None
         if self.isRed:
+            foodGrid = gameState.getBlueFood()
             lastFoodCount = len(lastState.getBlueFood().asList())
             currFoodCount = len(gameState.getBlueFood().asList())
         else:
+            foodGrid = gameState.getRedFood()
             lastFoodCount = len(lastState.getRedFood().asList())
             currFoodCount = len(gameState.getRedFood().asList())
         if currFoodCount != lastFoodCount:
-            self.valueIteration(gameState)
+            self.policies.updateFoodValues(foodGrid)
         #Update history
         self.history.append((gameState, beliefs))
 
@@ -419,19 +419,11 @@ class HivemindAgent(CaptureAgent):
     self.hivemind.registerInitialState(self.index, gameState)
 
   def chooseAction(self, gameState):
-    actions = gameState.getLegalActions(self.index)
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-    values = []
-    for act in actions:
-        newPos = Vectors.newPosition(pos[0], pos[1], act)
-        value = self.hivemind.posValue[newPos]
-        values.append(value)
-    bestAction = actions[values.index(max(values))]
-    return bestAction
 
     board = self.hivemind.board
-    boardValues = self.hivemind.boardValues
+    boardValues = self.hivemind.policies.foodValues
     boardFeature = board.positions[pos]
     if boardFeature.isNode:
         self.lastNode = boardFeature
