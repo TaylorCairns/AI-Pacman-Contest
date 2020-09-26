@@ -437,3 +437,25 @@ class HivemindAgent(CaptureAgent):
         values.append(value)
     bestAction = actions[values.index(max(values))]
     return bestAction
+
+    board = self.hivemind.board
+    values = self.hivemind.boardValues
+    boardFeature = board.positions[pos]
+    action = 'Stop'
+    if boardFeature.isNode:
+        value = values[pos]
+        for exit in boardFeature.exits:
+            newPos = boardFeature.exits[exit].end(boardFeature).position
+            newValue = values[newPos]
+            if newValue >= value:
+                action = exit
+                value = newValue
+    else:
+        startValue = values[boardFeature.ends[0].position]
+        endValue = values[boardFeature.ends[1].position]
+        posIndex = boardFeature.positions.index(pos)
+        if startValue > endValue:
+            action = Directions.REVERSE[boardFeature.actions[posIndex]]
+        else:
+            action = boardFeature.actions[posIndex + 1]
+    return action
