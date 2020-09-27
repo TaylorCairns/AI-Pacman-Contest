@@ -228,7 +228,7 @@ class Hivemind:
             else:
                 self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
-            self.policies = ValueIterations(self.board, foodGrid, beliefs, self.enemyIndexes, self.isRed)
+            self.policies = ValueIterations(foodGrid, beliefs, self)
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
@@ -329,7 +329,7 @@ class Hivemind:
             positions = []
             x, y = belief
             actions = Vectors.findNeigbours(x, y,
-            sel.history[0][0].getWalls(), allowStop=True)
+            self.history[0][0].getWalls(), allowStop=True)
             for action in actions:
                 pos = Vectors.newPosition(x, y, action)
                 positions.append(pos)
@@ -338,7 +338,7 @@ class Hivemind:
                 newBelief[pos[0]] += oldBelief[belief] / divisor
         newBelief.normalize()
         return newBelief
-        
+
 #################
 # Team creation #
 #################
@@ -473,13 +473,12 @@ class HivemindAgent(CaptureAgent):
     return action
 
 class ValueIterations:
-    def __init__( self, board, foodGrid, beliefs, enemyIndexes, isRed ):
-        self.enemyIndexes = enemyIndexes
-        self.board = board
+    def __init__( self, foodGrid, beliefs, hivemind ):
+        self.hivemind = hivemind
         self.enemyPosValues = {}
         self.updateEnemyPosVal(beliefs)
         self.returnHome = {}
-        self.updateReturnHome(isRed)
+        self.updateReturnHome()
         self.foodValues = {}
         self.updateFoodValues(foodGrid)
         self.combinedPolicy = {}
@@ -488,8 +487,8 @@ class ValueIterations:
         # Set initial values
         foodValue = 10
         values = {}
-        for pos in self.board.nodes:
-            node = self.board.nodes[pos]
+        for pos in self.hivemind.board.nodes:
+            node = self.hivemind.board.nodes[pos]
             if foodGrid[pos[0]][pos[1]]:
                 value = foodValue
             else:
@@ -498,8 +497,8 @@ class ValueIterations:
         # Iteration loop
         for i in range(iteration):
             newValues = {}
-            for pos in self.board.nodes:
-                node = self.board.nodes[pos]
+            for pos in self.hivemind.board.nodes:
+                node = self.hivemind.board.nodes[pos]
                 value = values[pos]
                 valueList = [discount * value + value]
                 for exit in node.exits:
@@ -514,15 +513,22 @@ class ValueIterations:
         self.foodValues = values
 
     def calcEnemyPosValue(self, beliefState, iteration=50, discount=0.9):
-        agentPenalty = -100
+        agentPenalty = 10
         enemyValues = {}
-        for p in self.board.positions:
-            enemyValues[p] = agentPenalty*beliefState[p]
+        for p in self.hivemind.board.positions:
+            boardFeature = self.hivemind.board.positions[p]
+            if not boardFeature.isNode:
+                boardFeature = boardFeature.ends[0]
+            if boardFeature.isRed == self.hivemind.isRed:
+                enemyValues[p] = agentPenalty*beliefState[p]
+            else:
+                forecast = self.hivemind.forecastBelief(beliefState)
+                enemyValues[p] = -agentPenalty*forecast[p]
 
         for i in range(iteration):
             newValues = {}
-            for p in self.board.positions:
-                boardFeature = self.board.positions[p]
+            for p in self.hivemind.board.positions:
+                boardFeature = self.hivemind.board.positions[p]
                 values = [enemyValues[p]]
                 if boardFeature.isNode:
                     for exit in boardFeature.exits:
@@ -552,14 +558,14 @@ class ValueIterations:
         return enemyValues
 
     def updateEnemyPosVal(self, beliefs):
-        for agent in self.enemyIndexes:
+        for agent in self.hivemind.enemyIndexes:
             self.enemyPosValues[agent] = self.calcEnemyPosValue(beliefs[agent])
 
-    def updateReturnHome(self, isRed, iteration=50, discount=0.9):
+    def updateReturnHome(self, iteration=50, discount=0.9):
         values = {}
-        for pos in self.board.nodes:
-            node = self.board.nodes[pos]
-            if isRed == node.isRed and node.onBorder:
+        for pos in self.hivemind.board.nodes:
+            node = self.hivemind.board.nodes[pos]
+            if self.hivemind.isRed == node.isRed and node.onBorder:
                 value = 10
             else:
                 value = 0
@@ -567,8 +573,8 @@ class ValueIterations:
         # Iteration loop
         for i in range(iteration):
             newValues = {}
-            for pos in self.board.nodes:
-                node = self.board.nodes[pos]
+            for pos in self.hivemind.board.nodes:
+                node = self.hivemind.board.nodes[pos]
                 value = values[pos]
                 valueList = [discount * value + value]
                 for exit in node.exits:
@@ -584,18 +590,18 @@ class ValueIterations:
     def updateCombinedPolicy(self, numCarrying, iteration=50, discount=0.9):
         values = {}
         # Combine policies
-        for pos in self.board.nodes:
-            node = self.board.nodes[pos]
+        for pos in self.hivemind.board.nodes:
+            node = self.hivemind.board.nodes[pos]
             value = self.foodValues[pos]
-            value += self.returnHome[pos] ** numCarrying
-            for agent in self.enemyIndexes:
+            value += self.returnHome[pos] ** numCarrying - 1
+            for agent in self.hivemind.enemyIndexes:
                 value += self.enemyPosValues[agent][pos]
             values[pos] = value
         # Iteration loop
         for i in range(iteration):
             newValues = {}
-            for pos in self.board.nodes:
-                node = self.board.nodes[pos]
+            for pos in self.hivemind.board.nodes:
+                node = self.hivemind.board.nodes[pos]
                 value = values[pos]
                 valueList = [discount * value + value]
                 for exit in node.exits:
