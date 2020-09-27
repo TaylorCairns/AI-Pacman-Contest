@@ -533,7 +533,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'HivemindAgent', second = 'DefensiveHivemindAgent'):
+               first = 'GreedyHivemindAgent', second = 'DefensiveHivemindAgent'):
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind), eval(second)(secondIndex, hivemind)]
 
@@ -541,7 +541,7 @@ def createTeam(firstIndex, secondIndex, isRed,
 # Agents #
 ##########
 
-class HivemindAgent(CaptureAgent):
+class GreedyHivemindAgent(CaptureAgent):
 
   def __init__( self, index, hivemind , timeForComputing = .1):
     self.index = index
@@ -607,7 +607,8 @@ class HivemindAgent(CaptureAgent):
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
-        if gameState.getAgentState(self.index).numCarrying > 2:
+        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood())
+        if gameState.getAgentState(self.index).numCarrying > 2 and not nearbyFood:
             returnPolicy = self.hivemind.policies.returnHome
             value, actions = self.findBestActions(gameState, returnPolicy)
         else:
