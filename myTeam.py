@@ -413,37 +413,42 @@ class HivemindAgent(CaptureAgent):
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-    foodCarry = gameState.getAgentState(self.index).numCarrying
-    returnValues = self.hivemind.policies.returnHome
+    #foodCarry = gameState.getAgentState(self.index).numCarrying
+    #returnValues = self.hivemind.policies.returnHome
     board = self.hivemind.board
-    foodValues = self.hivemind.policies.foodValues
+    #foodValues = self.hivemind.policies.foodValues
+    policy = self.hivemind.policies.combinedPolicy
     boardFeature = board.positions[pos]
-    if boardFeature.isNode and foodCarry < 2:
+    if boardFeature.isNode:# and foodCarry < 2:
         self.lastNode = boardFeature
         actions = ['Stop']
-        values = [foodValues[pos]]
+    #    values = [foodValues[pos]]
+        values = [policy[pos]]
         for exit in boardFeature.exits:
             newPos = boardFeature.exits[exit].end(boardFeature).position
             actions.append(exit)
-            values.append(foodValues[newPos])
+    #        values.append(foodValues[newPos])
+            values.append(policy[newPos])
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
         action = random.choice(bestActions)
-    elif boardFeature.isNode:
-        self.lastNode = boardFeature
-        actions = ['Stop']
-        values = [returnValues[pos]]
-        for exit in boardFeature.exits:
-            newPos = boardFeature.exits[exit].end(boardFeature).position
-            actions.append(exit)
-            values.append(returnValues[newPos])
-        maxValue = max(values)
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-        action = random.choice(bestActions)
+    # elif boardFeature.isNode:
+    #     self.lastNode = boardFeature
+    #     actions = ['Stop']
+    #     values = [returnValues[pos]]
+    #     for exit in boardFeature.exits:
+    #         newPos = boardFeature.exits[exit].end(boardFeature).position
+    #         actions.append(exit)
+    #         values.append(returnValues[newPos])
+    #     maxValue = max(values)
+    #     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+    #     action = random.choice(bestActions)
     else:
         if self.lastNode is None:
-            startValue = foodValues[boardFeature.ends[0].position]
-            endValue = foodValues[boardFeature.ends[1].position]
+            # startValue = foodValues[boardFeature.ends[0].position]
+            # endValue = foodValues[boardFeature.ends[1].position]
+            startValue = policy[boardFeature.ends[0].position]
+            endValue = policy[boardFeature.ends[1].position]
             if startValue > endValue:
                 self.lastNode = boardFeature.ends[1]
             else:
