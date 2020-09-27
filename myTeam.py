@@ -91,6 +91,13 @@ class BoardEdge:
         index = self.positions.index(position)
         return ((self.ends[0], index + 1), (self.ends[1], len(self.positions) - index))
 
+    def neighbouringFood(self, foodGrid):
+        food = self.hasFood(foodGrid)
+        for end in self.ends:
+            if end.hasFood(foodGrid):
+                food = True
+        return food
+
     def foodCount(self, foodGrid):
         count = 0
         for pos in self.positions:
@@ -148,6 +155,13 @@ class BoardNode:
     def hasFood(self, foodGrid):
         x, y = self.position
         return foodGrid[x][y]
+
+    def neighbouringFood(self, foodGrid):
+        food = self.hasFood(foodGrid)
+        for exit in self.exits:
+            if self.exits[exit].hasFood():
+                food = True
+        return food
 
 class BoardGraph:
     """
