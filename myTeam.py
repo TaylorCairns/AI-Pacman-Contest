@@ -315,13 +315,12 @@ class Hivemind:
                         positions.append((belief, util.manhattanDistance(belief,
                             gameState.getAgentPosition(currentAgent))))
                     for i in range(len(positions) - 1, -1, -1):
+                        distances = [util.manhattanDistance(gameState.getAgentPosition(index),
+                            positions[i][0]) for index in self.teamIndexes]
                         if (positions[i][1] < noiseReading -6 or
-                            positions[i][1] > noiseReading + 6):
+                            positions[i][1] > noiseReading + 6 or
+                            distances[0] < 6 or distances[1] < 6):
                             del positions[i]
-                        for index in self.teamIndexes:
-                            if util.manhattanDistance(gameState.getAgentPosition(index),
-                                positions[i][0]) < 6:
-                                del positions[i]
                     divisor = len(positions)
                     for pos in positions:
                         newBelief[pos[0]] += oldBelief[belief] / divisor
