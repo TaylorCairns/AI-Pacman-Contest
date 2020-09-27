@@ -323,10 +323,22 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-
-
-
-
+    def forecastBelief(self, oldBelief):
+        newBelief = util.Counter()
+        for belief in oldBelief:
+            positions = []
+            x, y = belief
+            actions = Vectors.findNeigbours(x, y,
+            sel.history[0][0].getWalls(), allowStop=True)
+            for action in actions:
+                pos = Vectors.newPosition(x, y, action)
+                positions.append(pos)
+            divisor = len(positions)
+            for pos in positions:
+                newBelief[pos[0]] += oldBelief[belief] / divisor
+        newBelief.normalize()
+        return newBelief
+        
 #################
 # Team creation #
 #################
