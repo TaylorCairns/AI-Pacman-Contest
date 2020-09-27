@@ -268,6 +268,7 @@ class Hivemind:
         if currFoodCount != lastFoodCount:
             self.policies.updateFoodValues(foodGrid)
         self.policies.updateCombinedPolicy(gameState.getAgentState(agentIndex).numCarrying)
+        self.policies.updateHuntValue(beliefs)
         #Update history
         self.history.append((gameState, beliefs))
 
@@ -482,6 +483,8 @@ class ValueIterations:
         self.foodValues = {}
         self.updateFoodValues(foodGrid)
         self.combinedPolicy = {}
+        self.huntValue = {}
+        self.updateHuntValue(beliefs)
 
     def updateFoodValues(self, foodGrid, iteration=50, discount=0.9):
         # Set initial values
@@ -613,3 +616,51 @@ class ValueIterations:
                 newValues[pos] = max(valueList)
             values = newValues
         self.combinedPolicy = values
+
+    def updateHuntValue(self, beliefs, iteration=50, discount=0.9):
+        bounty = 10
+        enemyValues = util.Counter()
+        for agent in self.hivemind.enemyIndexes:
+            for p in self.hivemind.board.positions:
+                boardFeature = self.hivemind.board.positions[p]
+                if not boardFeature.isNode:
+                    boardFeature = boardFeature.ends[0]
+                if boardFeature.isRed == self.hivemind.isRed:
+                    enemyValues[p] += bounty*beliefs[agent][p]
+                else:
+                    enemyValues[p] += 0
+
+        for i in range(iteration):
+            newValues = {}
+            for p in self.hivemind.board.positions:
+                boardFeature = self.hivemind.board.positions[p]
+                values = [enemyValues[p]]
+                newValue = 0
+                if boardFeature.isNode and (boardFeature.isRed == self.hivemind.isRed):
+                    for exit in boardFeature.exits:
+                        edge = boardFeature.exits[exit]
+                        newPos = None
+                        if edge.weight() == 1:
+                            newPos = edge.end(boardFeature).position
+                        else:
+                            if boardFeature is edge.ends[0]:
+                                newPos = edge.positions[0]
+                            else:
+                                newPos = edge.positions[-1]
+                        values.append(enemyValues[newPos])
+                    newValue = discount*max(values) + enemyValues[p]
+                elif not(boardFeature.isNode) and (boardFeature.ends[0].isRed == self.hivemind.isRed):
+                    index = boardFeature.positions.index(p)
+                    length = len(boardFeature.positions)
+                    if index - 1 < 0:
+                        values.append(enemyValues[boardFeature.ends[0].position])
+                    else:
+                        values.append(enemyValues[boardFeature.positions[index - 1]])
+                    if index + 1 < length:
+                        values.append(enemyValues[boardFeature.positions[index + 1]])
+                    else:
+                        values.append(enemyValues[boardFeature.ends[1].position])
+                    newValue = discount*max(values) + enemyValues[p]
+                newValues[p] = newValue
+            enemyValues = newValues
+        self.huntValue = enemyValues
