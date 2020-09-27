@@ -173,3 +173,6 @@ fabric.properties
 
 # End of https://www.gitignore.io/api/pycharm
 .idea
+
+score
+*.replay
