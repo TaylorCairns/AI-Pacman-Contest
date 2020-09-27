@@ -345,7 +345,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'HivemindAgent', second = 'HivemindAgent'):
+               first = 'DefensiveHivemindAgent', second = 'DefensiveHivemindAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -664,3 +664,71 @@ class ValueIterations:
                 newValues[p] = newValue
             enemyValues = newValues
         self.huntValue = enemyValues
+
+class DefensiveHivemindAgent(CaptureAgent):
+  def __init__( self, index, hivemind , timeForComputing = .1):
+    # Agent index for querying state
+    self.index = index
+    # Whether or not you're on the red team
+    self.red = None
+    # Maze distance calculator
+    self.distancer = None
+    # A history of observations
+    self.observationHistory = []
+    # Access to the graphics
+    self.display = None
+    # Hivemind for decision purposes
+    self.hivemind = hivemind
+    self.lastNode = None
+
+  def registerInitialState(self, gameState):
+    CaptureAgent.registerInitialState(self, gameState)
+    self.hivemind.registerInitialState(self.index, gameState)
+
+  def findBestActions(self, gameState, policy):
+    board = self.hivemind.board
+    pos = gameState.getAgentPosition(self.index)
+    boardFeature = board.positions[pos]
+    bestActions = []
+    maxValue = 0
+    if boardFeature.isNode:
+        self.lastNode = boardFeature
+        actions = ['Stop']
+        values = [policy[pos]]
+        for exit in boardFeature.exits:
+            newPos = boardFeature.exits[exit].end(boardFeature).position
+            actions.append(exit)
+            values.append(policy[newPos])
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+    else:
+        if self.lastNode is None:
+            startValue = policy[boardFeature.ends[0].position]
+            endValue = policy[boardFeature.ends[1].position]
+            if startValue > endValue:
+                self.lastNode = boardFeature.ends[1]
+            else:
+                self.lastNode = boardFeature.ends[0]
+        posIndex = boardFeature.positions.index(pos)
+        if self.lastNode is boardFeature.ends[1]:
+            bestActions = [Directions.REVERSE[boardFeature.actions[posIndex]]]
+            maxValue = policy[boardFeature.ends[0].position]
+        else:
+            bestActions = [boardFeature.actions[posIndex + 1]]
+            maxValue = policy[boardFeature.ends[1].position]
+    return (maxValue, bestActions)
+
+  def chooseAction(self, gameState):
+    self.hivemind.registerNewState(self.index, gameState)
+    value = 0
+    actions = ['Stop']
+    if gameState.getAgentState(self.index).numCarrying > 0:
+        returnPolicy = self.hivemind.policies.returnHome
+        value, actions = self.findBestActions(gameState, returnPolicy)
+    else:
+        huntPolicy = self.hivemind.policies.huntValue
+        value, actions = self.findBestActions(gameState, huntPolicy)
+        if value == 0:
+            foodPolicy = self.hivemind.policies.foodValues
+            value, actions = self.findBestActions(gameState, foodPolicy)
+    return random.choice(actions)
