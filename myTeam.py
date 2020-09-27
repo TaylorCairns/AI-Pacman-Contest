@@ -318,6 +318,10 @@ class Hivemind:
                         if (positions[i][1] < noiseReading -6 or
                             positions[i][1] > noiseReading + 6):
                             del positions[i]
+                        for index in self.teamIndexes:
+                            if util.manhattanDistance(gameState.getAgentPosition(index),
+                                positions[i][0]) < 6:
+                                del positions[i]
                     divisor = len(positions)
                     for pos in positions:
                         newBelief[pos[0]] += oldBelief[belief] / divisor
