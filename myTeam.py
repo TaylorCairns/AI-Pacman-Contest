@@ -222,7 +222,6 @@ class ValueIterations:
         self.updateReturnHome()
         self.foodValues = {}
         self.updateFoodValues(foodGrid)
-        self.combinedPolicy = {}
         self.huntValue = {}
         self.updateHuntValue(beliefs)
 
@@ -329,33 +328,6 @@ class ValueIterations:
                 newValues[pos] = max(valueList)
             values = newValues
         self.returnHome = values
-
-    def updateCombinedPolicy(self, numCarrying, iteration=50, discount=0.9):
-        values = {}
-        # Combine policies
-        for pos in self.hivemind.board.nodes:
-            node = self.hivemind.board.nodes[pos]
-            value = self.foodValues[pos]
-            value += self.returnHome[pos] ** numCarrying - 1
-            for agent in self.hivemind.enemyIndexes:
-                value += self.enemyPosValues[agent][pos]
-            values[pos] = value
-        # Iteration loop
-        for i in range(iteration):
-            newValues = {}
-            for pos in self.hivemind.board.nodes:
-                node = self.hivemind.board.nodes[pos]
-                value = values[pos]
-                valueList = [discount * value + value]
-                for exit in node.exits:
-                    edge = node.exits[exit]
-                    endValue = values[edge.end(node).position]
-                    weightedDiscount = discount ** edge.weight()
-                    totalValue = weightedDiscount * endValue + value
-                    valueList.append(totalValue)
-                newValues[pos] = max(valueList)
-            values = newValues
-        self.combinedPolicy = values
 
     def updateHuntValue(self, beliefs, iteration=50, discount=0.9):
         bounty = 10
@@ -474,7 +446,6 @@ class Hivemind:
         if currFoodCount != lastFoodCount:
             self.policies.updateFoodValues(foodGrid)
         self.policies.updateHuntValue(beliefs)
-        self.policies.updateCombinedPolicy(gameState.getAgentState(agentIndex).numCarrying)
         #Update history
         self.history.append((gameState, beliefs))
 
