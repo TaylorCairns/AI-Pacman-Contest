@@ -540,8 +540,8 @@ class ValueIterations:
         values = {}
         for pos in self.board.nodes:
             node = self.board.nodes[pos]
-            if isRed == node.isRed:
-                value = 2
+            if isRed == node.isRed and node.onBorder:
+                value = 10
             else:
                 value = 0
             values[pos] = value
