@@ -267,8 +267,8 @@ class Hivemind:
             currFoodCount = len(gameState.getRedFood().asList())
         if currFoodCount != lastFoodCount:
             self.policies.updateFoodValues(foodGrid)
-        self.policies.updateCombinedPolicy(gameState.getAgentState(agentIndex).numCarrying)
         self.policies.updateHuntValue(beliefs)
+        self.policies.updateCombinedPolicy(gameState.getAgentState(agentIndex).numCarrying)
         #Update history
         self.history.append((gameState, beliefs))
 
@@ -639,7 +639,7 @@ class ValueIterations:
                 boardFeature = self.hivemind.board.positions[p]
                 values = [enemyValues[p]]
                 newValue = 0
-                if boardFeature.isNode and (boardFeature.isRed == self.hivemind.isRed):
+                if boardFeature.isNode and (boardFeature.isRed == self.hivemind.isRed or boardFeature.onBorder):
                     for exit in boardFeature.exits:
                         edge = boardFeature.exits[exit]
                         newPos = None
@@ -740,11 +740,8 @@ class DefensiveHivemindAgent(CaptureAgent):
         value, actions = self.findBestActions(gameState, returnPolicy)
     else:
         huntPolicy = self.hivemind.policies.huntValue
-        if gameState.getAgentState(self.index).scaredTimer > 1:
-            value, actions = self.findBestActions(gameState, huntPolicy, True)
-        else:
-            value, actions = self.findBestActions(gameState, huntPolicy)
-        if value == 0:
+        value, actions = self.findBestActions(gameState, huntPolicy)
+        if gameState.getAgentState(self.index).scaredTimer > 0 or value == 0:
             foodPolicy = self.hivemind.policies.foodValues
             value, actions = self.findBestActions(gameState, foodPolicy)
     return random.choice(actions)
