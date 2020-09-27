@@ -213,273 +213,6 @@ class BoardGraph:
         for node in self.nodes:
             self.nodes[node].createEdges(self.nodes, self.positions, walls)
 
-class Hivemind:
-    """
-    The Hivemind stores a team of agents collective understanding of the board
-    and any belief states held about the position of the opposing team.
-    """
-    def __init__( self, teamIndexes, isRed ):
-        self.teamIndexes = teamIndexes
-        self.enemyIndexes = None
-        self.isRed = isRed
-        self.board = None
-        self.history = []
-        self.policies = None
-
-    def registerInitialState(self, agentIndex, gameState):
-        if len(self.history) == 0:
-            self.board = BoardGraph(gameState.getWalls())
-            beliefs = {}
-            for agentIndex in range(0, gameState.getNumAgents()):
-                belief = util.Counter()
-                belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
-                beliefs[agentIndex] = belief
-            self.history.append((gameState, beliefs))
-            foodGrid = None
-            if self.isRed:
-                self.enemyIndexes = gameState.getBlueTeamIndices()
-                foodGrid = gameState.getBlueFood()
-            else:
-                self.enemyIndexes = gameState.getRedTeamIndices()
-                foodGrid = gameState.getRedFood()
-            self.policies = ValueIterations(foodGrid, beliefs, self)
-
-    def registerNewState(self, agentIndex, gameState):
-        beliefs = {}
-        # Update belief about position of last agent on team to act
-        lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
-        beliefs[lastAgent] = self.updateBelief(lastAgent, agentIndex, gameState, hasMoved=True)
-        # Update beliefs about the position of enemy agents that have moved since
-        # the last agent on the team moved
-        mRange = ModRange(lastAgent + 1, agentIndex, gameState.getNumAgents())
-        while True:
-            agent = mRange.next()
-            if agent == None:
-                break
-            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState, hasMoved=True)
-        # Update beliefs about the position of agents who have not moved
-        mRange = ModRange(agentIndex, lastAgent, gameState.getNumAgents())
-        while True:
-            agent = mRange.next()
-            if agent == None:
-                break
-            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
-        self.policies.updateEnemyPosVal(beliefs)
-        # Update food values
-        lastObservation = self.history[-1]
-        lastState = lastObservation[0]
-        lastFoodCount = 0
-        currFoodCount = 0
-        foodGrid = None
-        if self.isRed:
-            foodGrid = gameState.getBlueFood()
-            lastFoodCount = len(lastState.getBlueFood().asList())
-            currFoodCount = len(gameState.getBlueFood().asList())
-        else:
-            foodGrid = gameState.getRedFood()
-            lastFoodCount = len(lastState.getRedFood().asList())
-            currFoodCount = len(gameState.getRedFood().asList())
-        if currFoodCount != lastFoodCount:
-            self.policies.updateFoodValues(foodGrid)
-        self.policies.updateHuntValue(beliefs)
-        self.policies.updateCombinedPolicy(gameState.getAgentState(agentIndex).numCarrying)
-        #Update history
-        self.history.append((gameState, beliefs))
-
-    def updateBelief(self, agentIndex, currentAgent, gameState, hasMoved=False):
-        newBelief = util.Counter()
-        agentPosition = gameState.getAgentPosition(agentIndex)
-        if agentPosition != None:
-            # We can see the agent so just store its position
-            newBelief[agentPosition] = 1.0
-        else:
-            # We can't see the agent time to investigate
-            oldState = self.history[-1]
-            oldPosition = oldState[0].getAgentPosition(agentIndex)
-            spottersEaten = []
-            if oldPosition != None:
-                # We could see the agent last time
-                for index in self.teamIndexes:
-                    position = oldState[0].getAgentPosition(index)
-                    distance = util.manhattanDistance(oldPosition, position)
-                    if distance < 5:
-                        movement = util.manhattanDistance(gameState.getAgentPosition(index), position)
-                        if movement > 1 and distance < 3:
-                            spottersEaten.append(True)
-                        else:
-                            spottersEaten.append(False)
-            if not all(spottersEaten):
-                # One of our agents should still be able to see them so the must be at spawn
-                newBelief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
-            else:
-                # We couldn't see the agent the last time or we got sent back to spawn
-                oldBelief = oldState[1][agentIndex]
-                noiseReading = gameState.getAgentDistances()[agentIndex]
-                for belief in oldBelief:
-                    positions = []
-                    if hasMoved:
-                        x, y = belief
-                        actions = Vectors.findNeigbours(x, y,
-                            gameState.getWalls(), allowStop=True)
-                        for action in actions:
-                            pos = Vectors.newPosition(x, y, action)
-                            positions.append((pos, util.manhattanDistance(pos,
-                                gameState.getAgentPosition(currentAgent))))
-                    else:
-                        positions.append((belief, util.manhattanDistance(belief,
-                            gameState.getAgentPosition(currentAgent))))
-                    for i in range(len(positions) - 1, -1, -1):
-                        distances = [util.manhattanDistance(gameState.getAgentPosition(index),
-                            positions[i][0]) for index in self.teamIndexes]
-                        if (positions[i][1] < noiseReading -6 or
-                            positions[i][1] > noiseReading + 6 or
-                            distances[0] < 6 or distances[1] < 6):
-                            del positions[i]
-                    divisor = len(positions)
-                    for pos in positions:
-                        newBelief[pos[0]] += oldBelief[belief] / divisor
-        newBelief.normalize()
-        return newBelief
-
-    def forecastBelief(self, oldBelief):
-        newBelief = util.Counter()
-        for belief in oldBelief:
-            positions = []
-            x, y = belief
-            actions = Vectors.findNeigbours(x, y,
-            self.history[0][0].getWalls(), allowStop=True)
-            for action in actions:
-                pos = Vectors.newPosition(x, y, action)
-                positions.append(pos)
-            divisor = len(positions)
-            for pos in positions:
-                newBelief[pos[0]] += oldBelief[belief] / divisor
-        newBelief.normalize()
-        return newBelief
-
-    def getEnemyFood(self):
-        foodGrid = None
-        if self.isRed:
-            foodGrid = self.history[-1][0].getBlueFood()
-        else:
-            foodGrid = self.history[-1][0].getRedFood()
-        return foodGrid
-
-#################
-# Team creation #
-#################
-
-def createTeam(firstIndex, secondIndex, isRed,
-               first = 'HivemindAgent', second = 'DefensiveHivemindAgent'):
-  """
-  This function should return a list of two agents that will form the
-  team, initialized using firstIndex and secondIndex as their agent
-  index numbers.  isRed is True if the red team is being created, and
-  will be False if the blue team is being created.
-
-  As a potentially helpful development aid, this function can take
-  additional string-valued keyword arguments ("first" and "second" are
-  such arguments in the case of this function), which will come from
-  the --redOpts and --blueOpts command-line arguments to capture.py.
-  For the nightly contest, however, your team will be created without
-  any extra arguments, so you should make sure that the default
-  behavior is what you want for the nightly contest.
-  """
-
-  hivemind = Hivemind([firstIndex, secondIndex], isRed)
-  # The following line is an example only; feel free to change it.
-  return [eval(first)(firstIndex, hivemind), eval(second)(secondIndex, hivemind)]
-
-##########
-# Agents #
-##########
-
-class HivemindAgent(CaptureAgent):
-
-  def __init__( self, index, hivemind , timeForComputing = .1):
-    # Agent index for querying state
-    self.index = index
-    # Whether or not you're on the red team
-    self.red = None
-    # Maze distance calculator
-    self.distancer = None
-    # A history of observations
-    self.observationHistory = []
-    # Access to the graphics
-    self.display = None
-    # Hivemind for decision purposes
-    self.hivemind = hivemind
-    self.lastNode = None
-
-  def registerInitialState(self, gameState):
-    CaptureAgent.registerInitialState(self, gameState)
-    self.hivemind.registerInitialState(self.index, gameState)
-
-  def findBestActions(self, gameState, policy):
-    board = self.hivemind.board
-    pos = gameState.getAgentPosition(self.index)
-    boardFeature = board.positions[pos]
-    bestActions = []
-    maxValue = 0
-    if boardFeature.isNode:
-        self.lastNode = boardFeature
-        actions = ['Stop']
-        values = [policy[pos]]
-        for exit in boardFeature.exits:
-            newPos = boardFeature.exits[exit].end(boardFeature).position
-            actions.append(exit)
-            values.append(policy[newPos])
-        maxValue = max(values)
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-    else:
-        if self.lastNode is None:
-            startValue = policy[boardFeature.ends[0].position]
-            endValue = policy[boardFeature.ends[1].position]
-            if startValue > endValue:
-                self.lastNode = boardFeature.ends[1]
-            else:
-                self.lastNode = boardFeature.ends[0]
-        posIndex = boardFeature.positions.index(pos)
-        if self.lastNode is boardFeature.ends[1]:
-            bestActions = [Directions.REVERSE[boardFeature.actions[posIndex]]]
-            maxValue = policy[boardFeature.ends[0].position]
-        else:
-            bestActions = [boardFeature.actions[posIndex + 1]]
-            maxValue = policy[boardFeature.ends[1].position]
-    return (maxValue, bestActions)
-
-  def chooseAction(self, gameState):
-    self.hivemind.registerNewState(self.index, gameState)
-    value = 0
-    actions = ['Stop']
-    pos = gameState.getAgentPosition(self.index)
-    boardFeature = self.hivemind.board.positions[pos]
-    if not boardFeature.isNode:
-        boardFeature = boardFeature.ends[0]
-    dist = []
-    for index in self.hivemind.enemyIndexes:
-        belief = self.hivemind.history[-1][1][index].argMax()
-        dist.append(self.getMazeDistance(pos, belief))
-    closest = min(dist)
-    closestList = [a for a, v in zip(self.hivemind.enemyIndexes, dist) if v == closest]
-    print(closestList)
-    if boardFeature.isRed != self.hivemind.isRed and closest < 6:
-        enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
-        print("hello, is it me you're looking for")
-        value, actions = self.findBestActions(gameState, enemyPolicy)
-    else:
-        if gameState.getAgentState(self.index).numCarrying > 2:
-            returnPolicy = self.hivemind.policies.returnHome
-            value, actions = self.findBestActions(gameState, returnPolicy)
-        else:
-            huntPolicy = self.hivemind.policies.huntValue
-            value, actions = self.findBestActions(gameState, huntPolicy)
-            if value == 0:
-                foodPolicy = self.hivemind.policies.foodValues
-                value, actions = self.findBestActions(gameState, foodPolicy)
-    return random.choice(actions)
-
-
 class ValueIterations:
     def __init__( self, foodGrid, beliefs, hivemind ):
         self.hivemind = hivemind
@@ -672,19 +405,255 @@ class ValueIterations:
             enemyValues = newValues
         self.huntValue = enemyValues
 
+class Hivemind:
+    """
+    The Hivemind stores a team of agents collective understanding of the board
+    and any belief states held about the position of the opposing team.
+    """
+    def __init__( self, teamIndexes, isRed ):
+        self.teamIndexes = teamIndexes
+        self.enemyIndexes = None
+        self.isRed = isRed
+        self.board = None
+        self.history = []
+        self.policies = None
+
+    def registerInitialState(self, agentIndex, gameState):
+        if len(self.history) == 0:
+            self.board = BoardGraph(gameState.getWalls())
+            beliefs = {}
+            for agentIndex in range(0, gameState.getNumAgents()):
+                belief = util.Counter()
+                belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
+                beliefs[agentIndex] = belief
+            self.history.append((gameState, beliefs))
+            foodGrid = None
+            if self.isRed:
+                self.enemyIndexes = gameState.getBlueTeamIndices()
+                foodGrid = gameState.getBlueFood()
+            else:
+                self.enemyIndexes = gameState.getRedTeamIndices()
+                foodGrid = gameState.getRedFood()
+            self.policies = ValueIterations(foodGrid, beliefs, self)
+
+    def registerNewState(self, agentIndex, gameState):
+        beliefs = {}
+        # Update belief about position of last agent on team to act
+        lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
+        beliefs[lastAgent] = self.updateBelief(lastAgent, agentIndex, gameState, hasMoved=True)
+        # Update beliefs about the position of enemy agents that have moved since
+        # the last agent on the team moved
+        mRange = ModRange(lastAgent + 1, agentIndex, gameState.getNumAgents())
+        while True:
+            agent = mRange.next()
+            if agent == None:
+                break
+            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState, hasMoved=True)
+        # Update beliefs about the position of agents who have not moved
+        mRange = ModRange(agentIndex, lastAgent, gameState.getNumAgents())
+        while True:
+            agent = mRange.next()
+            if agent == None:
+                break
+            beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
+        self.policies.updateEnemyPosVal(beliefs)
+        # Update food values
+        lastObservation = self.history[-1]
+        lastState = lastObservation[0]
+        lastFoodCount = 0
+        currFoodCount = 0
+        foodGrid = None
+        if self.isRed:
+            foodGrid = gameState.getBlueFood()
+            lastFoodCount = len(lastState.getBlueFood().asList())
+            currFoodCount = len(gameState.getBlueFood().asList())
+        else:
+            foodGrid = gameState.getRedFood()
+            lastFoodCount = len(lastState.getRedFood().asList())
+            currFoodCount = len(gameState.getRedFood().asList())
+        if currFoodCount != lastFoodCount:
+            self.policies.updateFoodValues(foodGrid)
+        self.policies.updateHuntValue(beliefs)
+        self.policies.updateCombinedPolicy(gameState.getAgentState(agentIndex).numCarrying)
+        #Update history
+        self.history.append((gameState, beliefs))
+
+    def updateBelief(self, agentIndex, currentAgent, gameState, hasMoved=False):
+        newBelief = util.Counter()
+        agentPosition = gameState.getAgentPosition(agentIndex)
+        if agentPosition != None:
+            # We can see the agent so just store its position
+            newBelief[agentPosition] = 1.0
+        else:
+            # We can't see the agent time to investigate
+            oldState = self.history[-1]
+            oldPosition = oldState[0].getAgentPosition(agentIndex)
+            spottersEaten = []
+            if oldPosition != None:
+                # We could see the agent last time
+                for index in self.teamIndexes:
+                    position = oldState[0].getAgentPosition(index)
+                    distance = util.manhattanDistance(oldPosition, position)
+                    if distance < 5:
+                        movement = util.manhattanDistance(gameState.getAgentPosition(index), position)
+                        if movement > 1 and distance < 3:
+                            spottersEaten.append(True)
+                        else:
+                            spottersEaten.append(False)
+            if not all(spottersEaten):
+                # One of our agents should still be able to see them so the must be at spawn
+                newBelief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
+            else:
+                # We couldn't see the agent the last time or we got sent back to spawn
+                oldBelief = oldState[1][agentIndex]
+                noiseReading = gameState.getAgentDistances()[agentIndex]
+                for belief in oldBelief:
+                    positions = []
+                    if hasMoved:
+                        x, y = belief
+                        actions = Vectors.findNeigbours(x, y,
+                            gameState.getWalls(), allowStop=True)
+                        for action in actions:
+                            pos = Vectors.newPosition(x, y, action)
+                            positions.append((pos, util.manhattanDistance(pos,
+                                gameState.getAgentPosition(currentAgent))))
+                    else:
+                        positions.append((belief, util.manhattanDistance(belief,
+                            gameState.getAgentPosition(currentAgent))))
+                    for i in range(len(positions) - 1, -1, -1):
+                        distances = [util.manhattanDistance(gameState.getAgentPosition(index),
+                            positions[i][0]) for index in self.teamIndexes]
+                        if (positions[i][1] < noiseReading -6 or
+                            positions[i][1] > noiseReading + 6 or
+                            distances[0] < 6 or distances[1] < 6):
+                            del positions[i]
+                    divisor = len(positions)
+                    for pos in positions:
+                        newBelief[pos[0]] += oldBelief[belief] / divisor
+        newBelief.normalize()
+        return newBelief
+
+    def forecastBelief(self, oldBelief):
+        newBelief = util.Counter()
+        for belief in oldBelief:
+            positions = []
+            x, y = belief
+            actions = Vectors.findNeigbours(x, y,
+            self.history[0][0].getWalls(), allowStop=True)
+            for action in actions:
+                pos = Vectors.newPosition(x, y, action)
+                positions.append(pos)
+            divisor = len(positions)
+            for pos in positions:
+                newBelief[pos[0]] += oldBelief[belief] / divisor
+        newBelief.normalize()
+        return newBelief
+
+    def getEnemyFood(self):
+        foodGrid = None
+        if self.isRed:
+            foodGrid = self.history[-1][0].getBlueFood()
+        else:
+            foodGrid = self.history[-1][0].getRedFood()
+        return foodGrid
+
+#################
+# Team creation #
+#################
+
+def createTeam(firstIndex, secondIndex, isRed,
+               first = 'HivemindAgent', second = 'DefensiveHivemindAgent'):
+  hivemind = Hivemind([firstIndex, secondIndex], isRed)
+  return [eval(first)(firstIndex, hivemind), eval(second)(secondIndex, hivemind)]
+
+##########
+# Agents #
+##########
+
+class HivemindAgent(CaptureAgent):
+
+  def __init__( self, index, hivemind , timeForComputing = .1):
+    self.index = index
+    self.red = None
+    self.distancer = None
+    self.observationHistory = []
+    self.display = None
+    self.hivemind = hivemind
+    self.lastNode = None
+
+  def registerInitialState(self, gameState):
+    CaptureAgent.registerInitialState(self, gameState)
+    self.hivemind.registerInitialState(self.index, gameState)
+
+  def findBestActions(self, gameState, policy):
+    board = self.hivemind.board
+    pos = gameState.getAgentPosition(self.index)
+    boardFeature = board.positions[pos]
+    bestActions = []
+    maxValue = 0
+    if boardFeature.isNode:
+        self.lastNode = boardFeature
+        actions = ['Stop']
+        values = [policy[pos]]
+        for exit in boardFeature.exits:
+            newPos = boardFeature.exits[exit].end(boardFeature).position
+            actions.append(exit)
+            values.append(policy[newPos])
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+    else:
+        if self.lastNode is None:
+            startValue = policy[boardFeature.ends[0].position]
+            endValue = policy[boardFeature.ends[1].position]
+            if startValue > endValue:
+                self.lastNode = boardFeature.ends[1]
+            else:
+                self.lastNode = boardFeature.ends[0]
+        posIndex = boardFeature.positions.index(pos)
+        if self.lastNode is boardFeature.ends[1]:
+            bestActions = [Directions.REVERSE[boardFeature.actions[posIndex]]]
+            maxValue = policy[boardFeature.ends[0].position]
+        else:
+            bestActions = [boardFeature.actions[posIndex + 1]]
+            maxValue = policy[boardFeature.ends[1].position]
+    return (maxValue, bestActions)
+
+  def chooseAction(self, gameState):
+    self.hivemind.registerNewState(self.index, gameState)
+    value = 0
+    actions = ['Stop']
+    pos = gameState.getAgentPosition(self.index)
+    boardFeature = self.hivemind.board.positions[pos]
+    if not boardFeature.isNode:
+        boardFeature = boardFeature.ends[0]
+    dist = []
+    for index in self.hivemind.enemyIndexes:
+        belief = self.hivemind.history[-1][1][index].argMax()
+        dist.append(self.getMazeDistance(pos, belief))
+    closest = min(dist)
+    closestList = [a for a, v in zip(self.hivemind.enemyIndexes, dist) if v == closest]
+    if boardFeature.isRed != self.hivemind.isRed and closest < 6:
+        enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
+        value, actions = self.findBestActions(gameState, enemyPolicy)
+    else:
+        if gameState.getAgentState(self.index).numCarrying > 2:
+            returnPolicy = self.hivemind.policies.returnHome
+            value, actions = self.findBestActions(gameState, returnPolicy)
+        else:
+            huntPolicy = self.hivemind.policies.huntValue
+            value, actions = self.findBestActions(gameState, huntPolicy)
+            if value == 0:
+                foodPolicy = self.hivemind.policies.foodValues
+                value, actions = self.findBestActions(gameState, foodPolicy)
+    return random.choice(actions)
+
 class DefensiveHivemindAgent(CaptureAgent):
   def __init__( self, index, hivemind , timeForComputing = .1):
-    # Agent index for querying state
     self.index = index
-    # Whether or not you're on the red team
     self.red = None
-    # Maze distance calculator
     self.distancer = None
-    # A history of observations
     self.observationHistory = []
-    # Access to the graphics
     self.display = None
-    # Hivemind for decision purposes
     self.hivemind = hivemind
     self.lastNode = None
 
