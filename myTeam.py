@@ -159,7 +159,7 @@ class BoardNode:
     def neighbouringFood(self, foodGrid):
         food = self.hasFood(foodGrid)
         for exit in self.exits:
-            if self.exits[exit].hasFood():
+            if self.exits[exit].hasFood(foodGrid):
                 food = True
         return food
 
@@ -356,6 +356,14 @@ class Hivemind:
                 newBelief[pos[0]] += oldBelief[belief] / divisor
         newBelief.normalize()
         return newBelief
+
+    def getEnemyFood(self):
+        foodGrid = None
+        if self.isRed:
+            foodGrid = self.history[-1][0].getBlueFood()
+        else:
+            foodGrid = self.history[-1][0].getRedFood()
+        return foodGrid
 
 #################
 # Team creation #
@@ -747,9 +755,11 @@ class DefensiveHivemindAgent(CaptureAgent):
 
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
+    pos = gameState.getAgentPosition(self.index)
+    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood())
     value = 0
     actions = ['Stop']
-    if gameState.getAgentState(self.index).numCarrying > 0:
+    if gameState.getAgentState(self.index).numCarrying > 0 and not nearbyFood:
         returnPolicy = self.hivemind.policies.returnHome
         value, actions = self.findBestActions(gameState, returnPolicy)
     else:
