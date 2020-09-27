@@ -110,6 +110,7 @@ class BoardNode:
     """
     def __init__(self, position, exits, isRed):
         self.isNode = True
+        self.onBorder = False
         self.position = position
         self.isRed = isRed
         self.exits = {}
@@ -155,6 +156,7 @@ class BoardGraph:
     def __init__(self, walls):
         self.positions = {}
         self.nodes = {}
+        self.border = {True: {}, False: {}}
         borderEast = walls.width // 2
         # Create nodes for all unwalled positions that do not have exactly two
         #   unwalled neighbors
@@ -179,12 +181,20 @@ class BoardGraph:
                     node = BoardNode(posEast, neighbours, False)
                     self.positions[posEast] = node
                     self.nodes[posEast] = node
+                    self.border[False][posEast] = node
+                else:
+                    self.border[False][posEast] = self.nodes[posEast]
                 posWest = (borderWest, y)
                 if posWest not in self.nodes:
                     neighbours = Vectors.findNeigbours(borderWest, y, walls)
                     node = BoardNode(posWest, neighbours, True)
                     self.positions[posWest] = node
                     self.nodes[posWest] = node
+                    self.border[True][posWest] = node
+                else:
+                    self.border[False][posWest] = self.nodes[posWest]
+                self.nodes[posEast].onBorder = True
+                self.nodes[posWest].onBorder = True
         # Create edges between nodes
         for node in self.nodes:
             self.nodes[node].createEdges(self.nodes, self.positions, walls)
