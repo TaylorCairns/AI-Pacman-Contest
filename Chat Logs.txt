@@ -1,0 +1,209 @@
+DISCORD CHAT LOGS
+Grim Cynicism = 3689650 - Jonathan Herriot Ware - s3689650@student.rmit.edu.au
+Vodka = 3637814 - Manan Lodhia - s3637814@student.rmit.edu.au
+Rift = 3658387 - Cailen Clancy - s3658387@student.rmit.edu.au
+Salad = 3603013 - Taylor Cairns - s3603013@student.rmit.edu.au
+
+*Majority of discussions took place on Google Meetings*
+
+--Chat Logs begin--
+
+Grim Cynicism08/26/2020
+Hello
+Vodka08/26/2020
+Hey
+Salad08/26/2020
+Hey man
+welcome
+Vodka08/26/2020
+thank you
+Grim Cynicism08/26/2020
+Does everyone know how to get to the teams section of github?
+Salad08/26/2020
+filling out group creation form
+vodka if you could post your fullname and student number
+Vodka08/26/2020
+sure
+Manan Lodhia 
+s3637814
+Salad08/26/2020
+
+everything look good there for you guys?
+Grim Cynicism08/26/2020
+yes
+Vodka08/26/2020
+yep
+Rift08/26/2020
+yea
+Salad08/26/2020
+github has been made
+our team name is AiPacman20202
+had to be different from first
+Grim Cynicism08/26/2020
+you followed the instructions exactly
+Salad08/26/2020
+https://classroom.github.com/g/J-Wqn-GT
+can you guys not find it?
+Grim Cynicism08/26/2020
+I am in and have cloned it already it was second group in list
+Salad08/26/2020
+good to hear
+Vodka08/26/2020
+got it, iam in
+Grim Cynicism08/27/2020
+Master now has an updated TEAM.md when you get a chance check that I got it correct
+Salad08/27/2020
+Looks good to me
+Vodka08/31/2020
+Hey guys, I was wondering if we could have a group discussion soon, maybe over discord or something. Just so that we could discuss about the project and get started with it
+Salad08/31/2020
+Sounds like a good idea. I've got an assignment due this week. But I am happy to find a time to discuss
+Vodka09/01/2020
+ahh ohk no worries, we can come up with a time that is flexible with all of us
+Grim Cynicism09/01/2020
+I have already attempted to start but have a toothache that has been preventing sleep. I will attend any meeting you schedule though
+Salad09/01/2020
+Worry about your health Grim, we have plenty of time to get a head of this project
+Grim Cynicism09/01/2020
+I am scheduled for oral surgery on monday and can at least talk through my ideas even if the medication is making it hard to code
+We also need to decide what types of AI we are adding
+1. Heuristic Search Algorithms (using general or Pacman specific heuristic functions).
+2. Classical Planning (PDDL and calling a classical planner).
+3. Value Iteration (Model-Based MDP).
+4. Monte Carlo Tree Search or UCT (Model-Free MDP).
+5. Reinforcement Learning – classical, approximate or deep Q-learning (Model-Free MDP).
+6. Goal Recognition techniques (to infer intentions of opponents).
+7. Game Theoretic Methods.
+In your solution, you have to use at least 3 techniques at least for groups of 4 that have been discussed in the subject or explored by you independently, and you can combine them in any form.
+I personally don't think 4 is particularly applicable but I could be wrong I also doubt any of us has the Mathematical background to do 7 to a level that would be useful
+Salad09/01/2020
+I nearly failed ct
+so
+Grim Cynicism09/01/2020
+Of course if any of you think you can find a Nash Equilibrium of the Pacman Capture the Flag contest Speak up please
+Grim Cynicism09/08/2020
+I have created a pull request of my initial creation of a graph of the board
+Vodka09/14/2020
+hey guys, just letting you know, i will be spending the next 2 weeks working only on our ai contest project as i have got ct out of the way so  lmk if ya guys also starting we could have a quick discussion and get on to it
+Salad09/15/2020
+yes, definately need to have a discussion, I have done all assignments so im good to focus on AI for the next 2 weeks
+Grim Cynicism09/15/2020
+Have any of you thought about what types of AI techniques you would like to add
+Salad09/15/2020
+either mdp or heuristic
+I understand those ones better than most
+Grim Cynicism09/15/2020
+Which MDP
+Salad09/15/2020
+value iteration
+Grim Cynicism09/15/2020
+BTW I am asking so I can determine where my focus should be
+Salad09/22/2020
+Hey guys, just made a post on github discussions to quickly give a short explanation about what you have done and why. Sorry i've been busy the last 2 weeks. At this point, vodka and I will work on the other agent to get it working before sunday. Cailen, just wanted to know if you're working on the attacking or defending agent
+Good luck on todays test
+Grim Cynicism09/22/2020
+The point of a hive ind agent is that there is no attacking or defending agent
+They share a mind and work as a team to achieve the goal of winning the contest
+Salad09/22/2020
+so whichever ai technique gets the best result is the one that's used?
+Grim Cynicism09/22/2020
+We will be building multiple techniques into one agent
+we can discuss this after the lecture We need a major discussion anyway
+I think I will set up a google meeting unless there is an objection
+Salad09/22/2020
+sounds good
+Grim Cynicism09/22/2020
+I am declaring the lecture over and will start a google meeting in 15 unless someone objects here
+Salad09/22/2020
+is everyone available for the meeting?
+Grim Cynicism09/22/2020
+The meeting will happen even if people are not available because as it stands this group is non functional And alot of comuncation is required if it has any hope of passing that is not Rift doing the entire project on his Own which I for one Find UNacceptable
+Salad09/22/2020
+I completely agree, and hopefully, with the test being over, we can pull together and get back on track
+do you have a link for the meeting?
+Grim Cynicism09/22/2020
+I will post it in 5 minutes
+https://meet.google.com/fox-cowm-ksw
+Meet
+Real-time meetings by Google. Using your browser, share your video, desktop, and presentations with teammates and customers.
+
+Vodka09/22/2020
+hey guys, sorry i just saw this
+Grim Cynicism09/22/2020
+Join up
+Vodka09/22/2020
+coming on
+Salad09/23/2020
+Post Discussion Recap
+-Discussed what stage we are currently at
+-Discussed techniques we plan on exploring
+-Discussed Plans for pair programming
+-Discussed which techniques will be better for certain situations
+-Discussed whether to go optimal route or nemesis route
+-Discussed availability to work on assignment
+-Discussed Game Theory
+-Decided on which techniques to explore first (Heuristic Search, Classical Planning, Value Iteration)
+Grim Cynicism09/23/2020
+I am going to fix my mothers internet will probably be back by 5 if some one wants to pair program then
+Salad09/23/2020
+working on it atm, ill let you know if im struggling
+Grim Cynicism09/23/2020
+I am back and hate ISPs
+I am attempting to add the opponent belief state management to the hivemind
+Vodka09/23/2020
+hey, i would be avail anytime Friday onwards, unfortunately i cant skip work tomorrow, i got a few meetings to handle during the day, but yeah i will be available after 5pm. btw I have started coding and haven't come across any issues yet.
+Grim Cynicism09/24/2020
+I have implemented belief state tracking for agent positions
+It currently has no support for when an agent is eaten but should otherwise be completely accurate
+Grim Cynicism09/24/2020
+I have an attempt to support enemy agents being eaten now
+Grim Cynicism09/24/2020
+I just noticed and fixed an error in my edge case adjustment
+Does anyone want assistance with their code or reviewing mine
+Salad09/24/2020
+Working through mine atm, no roadblocks yet
+but tomorrow wouldnt mind some help adapting it to use your graph board
+we should do another meeting tomorrow
+Grim Cynicism09/25/2020
+Does anyone have objections to having a meeting tonight
+Salad09/25/2020
+no objections
+Salad09/25/2020
+vodka, what time you good for meeting?
+Vodka09/25/2020
+yeah, I'll be there
+@Grim Cynicism, I am working on a* but i was not sure how to go about it working with the hive mind and all, so i started from scratch and have been working on it, pulled some code from my project1 as well. I was wonder if i can get this working would you help me with modifying it so it works with graph board and hive mind
+Grim Cynicism09/25/2020
+@Vodka Yes. if you want to after the meeting I will try and help you adapt it for the Hivemind but ultimately you will want to incorporate the value iteration by Salad into you heuristic evaluation function
+Salad09/25/2020
+having dinner atm, would you like me to push?
+Grim Cynicism09/25/2020
+Yes please
+Vodka09/25/2020
+yeh, i am lost with that bit, i am not sure how to do the integration
+i just restarted the my entire bit today,  whatever i had in the last 2 days was'nt really right
+Salad09/25/2020
+it has been pushed
+Grim Cynicism09/25/2020
+Latest version of hivemind pushed
+https://meet.google.com/mxh-oseu-rgh
+Meet
+Real-time meetings by Google. Using your browser, share your video, desktop, and presentations with teammates and customers.
+
+Grim CynicismToday at 12:20 PM
+If any of you are there we have results
+Grim CynicismToday at 3:17 PM
+hello
+VodkaToday at 6:22 PM
+hey
+Grim CynicismToday at 6:22 PM
+https://meet.google.com/san-ydrx-pcg
+Meet
+Real-time meetings by Google. Using your browser, share your video, desktop, and presentations with teammates and customers.
+
+SaladToday at 6:26 PM
+Remember before the end of today, to fill out the certification form for the preliminary submission
+https://bit.ly/3hoGZnn
+Google Forms - create and analyze surveys, for free.
+Create a new survey on your own or with others at the same time. Choose from a variety of survey types and analyze results in Google Forms. Free from Google.
+otherwise no marks will be rewarded to you
