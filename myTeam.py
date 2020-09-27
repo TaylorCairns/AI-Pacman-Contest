@@ -370,7 +370,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'DefensiveHivemindAgent', second = 'DefensiveHivemindAgent'):
+               first = 'HivemindAgent', second = 'DefensiveHivemindAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -397,94 +397,42 @@ def createTeam(firstIndex, secondIndex, isRed,
 class HivemindAgent(CaptureAgent):
 
   def __init__( self, index, hivemind , timeForComputing = .1):
-    """
-    Lists several variables you can query:
-    self.index = index for this agent
-    self.red = true if you're on the red team, false otherwise
-    self.distancer = distance calculator (contest code provides this)
-    self.observationHistory = list of GameState objects that correspond
-        to the sequential order of states that have occurred so far this game
-    self.timeForComputing = an amount of time to give each turn for computing maze distances
-        (part of the provided distance calculator)
-    """
     # Agent index for querying state
     self.index = index
-
     # Whether or not you're on the red team
     self.red = None
-
     # Maze distance calculator
     self.distancer = None
-
     # A history of observations
     self.observationHistory = []
-
     # Access to the graphics
     self.display = None
-
     # Hivemind for decision purposes
     self.hivemind = hivemind
     self.lastNode = None
 
   def registerInitialState(self, gameState):
-    """
-    This method handles the initial setup of the
-    agent to populate useful fields (such as what team
-    we're on).
-
-    A distanceCalculator instance caches the maze distances
-    between each pair of positions, so your agents can use:
-    self.distancer.getDistance(p1, p2)
-
-    IMPORTANT: This method may run for at most 15 seconds.
-    """
-
-    '''
-    Make sure you do not delete the following line. If you would like to
-    use Manhattan distances instead of maze distances in order to save
-    on initialization time, please take a look at
-    CaptureAgent.registerInitialState in captureAgents.py.
-    '''
     CaptureAgent.registerInitialState(self, gameState)
     self.hivemind.registerInitialState(self.index, gameState)
 
-  def chooseAction(self, gameState):
-    self.hivemind.registerNewState(self.index, gameState)
-    pos = gameState.getAgentPosition(self.index)
-    #foodCarry = gameState.getAgentState(self.index).numCarrying
-    #returnValues = self.hivemind.policies.returnHome
+  def findBestActions(self, gameState, policy):
     board = self.hivemind.board
-    #foodValues = self.hivemind.policies.foodValues
-    policy = self.hivemind.policies.combinedPolicy
+    pos = gameState.getAgentPosition(self.index)
     boardFeature = board.positions[pos]
-    if boardFeature.isNode:# and foodCarry < 2:
+    bestActions = []
+    maxValue = 0
+    if boardFeature.isNode:
         self.lastNode = boardFeature
         actions = ['Stop']
-    #    values = [foodValues[pos]]
         values = [policy[pos]]
         for exit in boardFeature.exits:
             newPos = boardFeature.exits[exit].end(boardFeature).position
             actions.append(exit)
-    #        values.append(foodValues[newPos])
             values.append(policy[newPos])
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-        action = random.choice(bestActions)
-    # elif boardFeature.isNode:
-    #     self.lastNode = boardFeature
-    #     actions = ['Stop']
-    #     values = [returnValues[pos]]
-    #     for exit in boardFeature.exits:
-    #         newPos = boardFeature.exits[exit].end(boardFeature).position
-    #         actions.append(exit)
-    #         values.append(returnValues[newPos])
-    #     maxValue = max(values)
-    #     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-    #     action = random.choice(bestActions)
     else:
         if self.lastNode is None:
-            # startValue = foodValues[boardFeature.ends[0].position]
-            # endValue = foodValues[boardFeature.ends[1].position]
             startValue = policy[boardFeature.ends[0].position]
             endValue = policy[boardFeature.ends[1].position]
             if startValue > endValue:
@@ -493,10 +441,44 @@ class HivemindAgent(CaptureAgent):
                 self.lastNode = boardFeature.ends[0]
         posIndex = boardFeature.positions.index(pos)
         if self.lastNode is boardFeature.ends[1]:
-            action = Directions.REVERSE[boardFeature.actions[posIndex]]
+            bestActions = [Directions.REVERSE[boardFeature.actions[posIndex]]]
+            maxValue = policy[boardFeature.ends[0].position]
         else:
-            action = boardFeature.actions[posIndex + 1]
-    return action
+            bestActions = [boardFeature.actions[posIndex + 1]]
+            maxValue = policy[boardFeature.ends[1].position]
+    return (maxValue, bestActions)
+
+  def chooseAction(self, gameState):
+    self.hivemind.registerNewState(self.index, gameState)
+    value = 0
+    actions = ['Stop']
+    pos = gameState.getAgentPosition(self.index)
+    boardFeature = self.hivemind.board.positions[pos]
+    if not boardFeature.isNode:
+        boardFeature = boardFeature.ends[0]
+    dist = []
+    for index in self.hivemind.enemyIndexes:
+        belief = self.hivemind.history[-1][1][index].argMax()
+        dist.append(self.getMazeDistance(pos, belief))
+    closest = min(dist)
+    closestList = [a for a, v in zip(self.hivemind.enemyIndexes, dist) if v == closest]
+    print(closestList)
+    if boardFeature.isRed != self.hivemind.isRed and closest < 6:
+        enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
+        print("hello, is it me you're looking for")
+        value, actions = self.findBestActions(gameState, enemyPolicy)
+    else:
+        if gameState.getAgentState(self.index).numCarrying > 2:
+            returnPolicy = self.hivemind.policies.returnHome
+            value, actions = self.findBestActions(gameState, returnPolicy)
+        else:
+            huntPolicy = self.hivemind.policies.huntValue
+            value, actions = self.findBestActions(gameState, huntPolicy)
+            if value == 0:
+                foodPolicy = self.hivemind.policies.foodValues
+                value, actions = self.findBestActions(gameState, foodPolicy)
+    return random.choice(actions)
+
 
 class ValueIterations:
     def __init__( self, foodGrid, beliefs, hivemind ):
