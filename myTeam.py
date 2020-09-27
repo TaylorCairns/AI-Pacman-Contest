@@ -688,7 +688,7 @@ class DefensiveHivemindAgent(CaptureAgent):
     CaptureAgent.registerInitialState(self, gameState)
     self.hivemind.registerInitialState(self.index, gameState)
 
-  def findBestActions(self, gameState, policy):
+  def findBestActions(self, gameState, policy, reciprocal=False):
     board = self.hivemind.board
     pos = gameState.getAgentPosition(self.index)
     boardFeature = board.positions[pos]
@@ -697,11 +697,17 @@ class DefensiveHivemindAgent(CaptureAgent):
     if boardFeature.isNode:
         self.lastNode = boardFeature
         actions = ['Stop']
-        values = [policy[pos]]
+        value = policy[pos]
+        if reciprocal and (policy[pos] > 0):
+            value = 1 / value
+        values = [value]
         for exit in boardFeature.exits:
             newPos = boardFeature.exits[exit].end(boardFeature).position
             actions.append(exit)
-            values.append(policy[newPos])
+            value = policy[newPos]
+            if reciprocal and (policy[newPos] > 0):
+                value = 1 / value
+            values.append(value)
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
     else:
@@ -716,9 +722,13 @@ class DefensiveHivemindAgent(CaptureAgent):
         if self.lastNode is boardFeature.ends[1]:
             bestActions = [Directions.REVERSE[boardFeature.actions[posIndex]]]
             maxValue = policy[boardFeature.ends[0].position]
+            if reciprocal and (maxValue > 0):
+                maxValue = 1 / maxValue
         else:
             bestActions = [boardFeature.actions[posIndex + 1]]
             maxValue = policy[boardFeature.ends[1].position]
+            if reciprocal and maxValue > 0:
+                maxValue = 1 / maxValue
     return (maxValue, bestActions)
 
   def chooseAction(self, gameState):
@@ -730,7 +740,10 @@ class DefensiveHivemindAgent(CaptureAgent):
         value, actions = self.findBestActions(gameState, returnPolicy)
     else:
         huntPolicy = self.hivemind.policies.huntValue
-        value, actions = self.findBestActions(gameState, huntPolicy)
+        if gameState.getAgentState(self.index).scaredTimer > 1:
+            value, actions = self.findBestActions(gameState, huntPolicy, True)
+        else:
+            value, actions = self.findBestActions(gameState, huntPolicy)
         if value == 0:
             foodPolicy = self.hivemind.policies.foodValues
             value, actions = self.findBestActions(gameState, foodPolicy)
