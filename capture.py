@@ -60,6 +60,9 @@ from game import Agent
 from game import reconstituteGrid
 import sys, util, types, time, random, imp
 import keyboardAgents
+import os
+
+DIR_SCRIPT = sys.path[0]
 
 # If you change these, you won't affect the server, so you can't cheat
 KILL_POINTS = 0
@@ -344,8 +347,8 @@ def halfList(l, grid, red):
   halfway = grid.width // 2
   newList = []
   for x,y in l:
-    if red and x <= halfway: newList.append((x,y))
-    elif not red and x > halfway: newList.append((x,y))
+    if red and x < halfway: newList.append((x,y))
+    elif not red and x >= halfway: newList.append((x,y))
   return newList
 
 ############################################################################
@@ -765,9 +768,9 @@ def readCommand( argv ):
   parser = OptionParser(usageStr)
 
   parser.add_option('-r', '--red', help=default('Red team'),
-                    default='baselineTeam')
+                    default=os.path.join(DIR_SCRIPT, 'baselineTeam')),
   parser.add_option('-b', '--blue', help=default('Blue team'),
-                    default='baselineTeam')
+                    default=os.path.join(DIR_SCRIPT, 'baselineTeam')),
   parser.add_option('--red-name', help=default('Red team name'),
                     default='Red')
   parser.add_option('--blue-name', help=default('Blue team name'),
@@ -782,7 +785,7 @@ def readCommand( argv ):
   parser.add_option('--keys3', help='Make agent 3 (second blue player) a keyboard agent', action='store_true',default=False)
   parser.add_option('-l', '--layout', dest='layout',
                     help=default('the LAYOUT_FILE from which to load the map layout; use RANDOM for a random maze; use RANDOM<seed> to use a specified random seed, e.g., RANDOM23'),
-                    metavar='LAYOUT_FILE', default='defaultCapture')
+                    metavar='LAYOUT_FILE', default=os.path.join(DIR_SCRIPT, 'layouts', 'defaultCapture'))
   parser.add_option('-t', '--textgraphics', action='store_true', dest='textgraphics',
                     help='Display output as text only', default=False)
 
@@ -838,7 +841,8 @@ def readCommand( argv ):
     import captureGraphicsDisplay
     # Hack for agents writing to the display
     captureGraphicsDisplay.FRAME_TIME = 0
-    args['display'] = captureGraphicsDisplay.PacmanGraphics(options.red, options.blue, options.zoom, 0, capture=True)
+    args['display'] = captureGraphicsDisplay.PacmanGraphics(options.red, options.red_name, options.blue,
+                                                            options.blue_name, options.zoom, 0, capture=True)
     import __main__
     __main__.__dict__['_display'] = args['display']
 
@@ -856,13 +860,12 @@ def readCommand( argv ):
   if options.replay != None:
     print('Replaying recorded game %s.' % options.replay)
     import pickle
-    recorded = pickle.load(open(options.replay,'rb'),encoding="bytes")
+    recorded = pickle.load(open(options.replay,'rb'),encoding="utf-8")
     recorded['display'] = args['display']
     recorded['delay'] = options.delay_step
     recorded['redTeamName'] = options.red
     recorded['blueTeamName'] = options.blue
     recorded['waitEnd'] = False
-
     replayGame(**recorded)
     sys.exit(0)
 
@@ -870,7 +873,7 @@ def readCommand( argv ):
   if options.replayq != None:
     print('Replaying recorded game %s.' % options.replay)
     import pickle
-    recorded = pickle.load(open(options.replayq,'rb'),encoding="bytes")
+    recorded = pickle.load(open(options.replayq,'rb'), encoding="utf-8")
     recorded['display'] = args['display']
     recorded['delay'] = 0.0
     recorded['redTeamName'] = options.red
@@ -1098,6 +1101,7 @@ if __name__ == '__main__':
   """
   start_time = time.time()
   options = readCommand( sys.argv[1:] ) # Get game components based on input
+  print(options)
   games = runGames(**options)
 
   save_score(games[0])
