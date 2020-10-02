@@ -87,6 +87,12 @@ class BoardEdge:
         else:
             return self.ends[1]
 
+    def calcAgentProb(self, belief):
+        prob = 0
+        for pos in self.positions:
+            prob += belief[pos]
+        return prob
+
     def distances(self, position):
         index = self.positions.index(position)
         return ((self.ends[0], index + 1), (self.ends[1], len(self.positions) - index))
@@ -151,6 +157,9 @@ class BoardNode:
                 # Add the edges to the nodes
                 self.exits[action] = edge
                 nodes[newPos].exits[Directions.REVERSE[edge.actions[-1]]] = edge
+
+    def calcAgentProb(self, belief):
+        return belief[self.position]
 
     def hasFood(self, foodGrid):
         x, y = self.position
