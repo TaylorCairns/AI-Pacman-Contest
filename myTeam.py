@@ -84,8 +84,10 @@ class BoardEdge:
     def end(self, node):
         if node != self.ends[0]:
             return self.ends[0]
-        else:
+        elif node == self.ends[0]:
             return self.ends[1]
+        else:
+            return None
 
     def calcAgentProb(self, belief):
         prob = 0
