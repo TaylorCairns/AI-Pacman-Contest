@@ -119,6 +119,13 @@ class BoardEdge:
         else:
             return False
 
+    def isDeadEnd(self):
+        deadEnd = False
+        for end in ends:
+            if end.isDeadEnd():
+                deadEnd = True
+        return deadEnd
+
 class BoardNode:
     """
     Represents a junction or terminal point of the board
@@ -173,6 +180,9 @@ class BoardNode:
             if self.exits[exit].hasFood(foodGrid):
                 food = True
         return food
+
+    def isDeadEnd(self):
+        return False if len(exits) > 1 else True
 
 class BoardGraph:
     """
