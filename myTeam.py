@@ -563,6 +563,14 @@ class Hivemind:
         x, y = position
         return 1 if self.getEnemyFood()[x][y] else 0
 
+    def eatsCapsuleFeature(position):
+        capsules = None
+        if self.isRed:
+            capsules = self.history[-1][0].getBlueCapsules()
+        else:
+            capsules = self.history[-1][0].getRedCapsules()
+        return 1 if position in capsules else 0
+
 #################
 # Team creation #
 #################
