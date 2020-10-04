@@ -126,6 +126,19 @@ class BoardEdge:
                 deadEnd = True
         return deadEnd
 
+    def oneAway(self, position):
+        positions = []
+        index = self.positions.index(position)
+        if index == 0:
+            positions.append(self.end[0].position)
+        else:
+            positions.append(self.positions[index - 1])
+        if index == len(self.positions) - 1:
+            positions.append(self.end[1].position)
+        else:
+            positions.append(self.positions[index + 1])
+        return positions
+
 class BoardNode:
     """
     Represents a junction or terminal point of the board
