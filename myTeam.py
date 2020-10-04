@@ -197,6 +197,18 @@ class BoardNode:
     def isDeadEnd(self):
         return False if len(exits) > 1 else True
 
+    def oneAway(self, position):
+        positions = []
+        for exit in self.exits:
+            edge = self.exits[exit]
+            if edge.weight() == 1:
+                positions.append(edge.end(self).position)
+            elif self == edge.ends[0]:
+                positions.append(edge.positions[0])
+            elif self == edge.ends[1]:
+                positions.append(edge.positions[-1])
+        return positions
+
 class BoardGraph:
     """
     A graph representation of the pacman board
