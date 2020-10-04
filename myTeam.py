@@ -82,7 +82,7 @@ class BoardEdge:
         return len(self.positions) + 1
 
     def end(self, node):
-        if node != self.ends[0]:
+        if node == self.ends[1]:
             return self.ends[0]
         elif node == self.ends[0]:
             return self.ends[1]
