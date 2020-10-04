@@ -549,6 +549,16 @@ class Hivemind:
             foodGrid = self.history[-1][0].getRedFood()
         return foodGrid
 
+    """
+    Feature Extractors
+    """
+    def scoreFeature(gameState):
+        score = gameState.data.score
+        if not self.isRed:
+            score *= -1
+        initialFood = self.history[0][0].getRedFood().count()
+        return score / initialFood
+
 #################
 # Team creation #
 #################
