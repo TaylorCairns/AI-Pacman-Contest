@@ -605,6 +605,15 @@ class Hivemind:
     def foodCarriedFeature(agent):
         return self.history[-1][0].getAgentState(agent).numCarrying
 
+    def enemiesOneAway(position):
+        sumProb = 0
+        positions = self.board.positions[position].oneAway(position)
+        for agent in self.enemyIndexes:
+            sumProb += self.history[-1][1][agent][position]
+            for pos in positions:
+                sumProb += self.history[-1][1][agent][pos]
+        return sumProb
+        
 #################
 # Team creation #
 #################
