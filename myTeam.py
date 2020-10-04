@@ -577,6 +577,9 @@ class Hivemind:
     def inDeadEndFeature(position):
         return 1 if self.board.positions[position].isDeadEnd() else 0
 
+    def foodCarriedFeature(agent):
+        return self.history[-1][0].getAgentState(agent).numCarrying
+
 #################
 # Team creation #
 #################
