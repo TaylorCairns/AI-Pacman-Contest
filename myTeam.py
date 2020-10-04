@@ -614,6 +614,35 @@ class Hivemind:
                 sumProb += self.history[-1][1][agent][pos]
         return sumProb
         
+    def borderDistanceFeature(position):
+        # Initialise search
+        fringe = util.PriorityQueue()
+        visited = {}
+        mid = self.history[0][0].getWalls().width / 2 + 0.5
+        boardFeature = self.board.positions[position]
+        if boardFeature.isNode:
+            hCost = int(abs(mid - boardFeature.position[0]))
+            fringe.push((boardFeature, 0), hCost)
+        else:
+            for node in boardFeature.distances(positions):
+                hCost = int(abs(mid - node[0].position[0]))
+                fringe.push(node, node[1] + hCost)
+        # While search hasn't failed
+        while not fringe.isEmpty():
+            node = fringe.pop()
+            # Goal test
+            if node[0].onBorder:
+                return node[1]
+            # Successor generation
+            if node[0] not in visited:
+                visited[node[0]] = node[1]
+                edges = [node[0].exits[exit] for exit in node[0].exits]
+                costs = [node[1] + edge.weight() for edge in edges]
+                successors = zip(edges, costs)
+                for successor in successors:
+                    hCost = int(abs(mid - successor[0].position[0]))
+                    fringe.update(successor, successor[1] + hCost)
+
 #################
 # Team creation #
 #################
