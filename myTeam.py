@@ -571,6 +571,9 @@ class Hivemind:
             capsules = self.history[-1][0].getRedCapsules()
         return 1 if position in capsules else 0
 
+    def onEdgeFeature(position):
+        return 1 if not self.board.positions[position].isNode else 0
+
 #################
 # Team creation #
 #################
