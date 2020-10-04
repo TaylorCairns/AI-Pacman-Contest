@@ -559,6 +559,10 @@ class Hivemind:
         initialFood = self.history[0][0].getRedFood().count()
         return score / initialFood
 
+    def eatsFoodFeature(position):
+        x, y = position
+        return 1 if self.getEnemyFood()[x][y] else 0
+
 #################
 # Team creation #
 #################
