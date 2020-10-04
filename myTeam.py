@@ -574,6 +574,9 @@ class Hivemind:
     def onEdgeFeature(position):
         return 1 if not self.board.positions[position].isNode else 0
 
+    def inDeadEndFeature(position):
+        return 1 if self.board.positions[position].isDeadEnd() else 0
+
 #################
 # Team creation #
 #################
