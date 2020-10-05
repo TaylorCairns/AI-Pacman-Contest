@@ -724,6 +724,9 @@ class Hivemind:
                 for successor in successors:
                     fringe.update(successor, successor[1])
 
+    def nearbyFoodFeature(position):
+        return self.board.positions[position].neighbouringFood(self.getEnemyFood())
+
 #################
 # Team creation #
 #################
