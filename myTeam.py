@@ -613,7 +613,7 @@ class Hivemind:
             for pos in positions:
                 sumProb += self.history[-1][1][agent][pos]
         return sumProb
-        
+
     def borderDistanceFeature(position):
         # Initialise search
         fringe = util.PriorityQueue()
@@ -643,6 +643,43 @@ class Hivemind:
                 for successor in successors:
                     hCost = int(abs(mid - successor[0].position[0]))
                     fringe.update(successor, successor[1] + hCost)
+
+    def foodDistanceFeature(position):
+        foodGrid = self.getEnemyFood()
+        # Initialise search
+        fringe = util.PriorityQueue()
+        visited = {}
+        boardFeature = self.board.positions[position]
+        if boardFeature.isNode:
+            fringe.push((boardFeature.position, 0), 0)
+        else:
+            for node in boardFeature.distances(positions):
+                fringe.push(node[0].position, node[1])
+        # While search hasn't failed
+        while not fringe.isEmpty():
+            next, cost = fringe.pop()
+            boardFeature = self.board.positions[next]
+            # Goal test
+            if boardFeature.hasFood(foodGrid):
+                return cost
+            # Successor generation
+            if next not in visited:
+                visited[next] = cost
+                edges = [boardFeature.exits[exit] for exit in boardFeature.exits]
+                successors = []
+                for edge in edges:
+                    if edge.hasFood(foodGrid):
+                        distance = 1
+                        for pos in edge.positions:
+                            if foodGrid[pos[0]][pos[1]]:
+                                successors.append((pos, cost + distance))
+                                break
+                            distance += 1
+                    else:
+                        node = edge.end(boardFeature)
+                        successors.append((node.position, cost + edge.weight()))
+                for successor in successors:
+                    fringe.update(successor, successor[1])
 
 #################
 # Team creation #
