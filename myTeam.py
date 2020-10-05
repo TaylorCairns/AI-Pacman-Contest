@@ -638,7 +638,8 @@ class Hivemind:
                 visited[node[0]] = node[1]
                 edges = [node[0].exits[exit] for exit in node[0].exits]
                 costs = [node[1] + edge.weight() for edge in edges]
-                successors = zip(edges, costs)
+                nodes = [edge.end(node[0]) for edge in edges]
+                successors = zip(nodes, costs)
                 for successor in successors:
                     hCost = int(abs(mid - successor[0].position[0]))
                     fringe.update(successor, successor[1] + hCost)
