@@ -447,8 +447,9 @@ class Hivemind:
         self.board = None
         self.history = []
         self.policies = None
+        self.distancer = None
 
-    def registerInitialState(self, agentIndex, gameState):
+    def registerInitialState(self, agentIndex, gameState, distancer):
         if len(self.history) == 0:
             self.board = BoardGraph(gameState.getWalls())
             beliefs = {}
@@ -465,6 +466,7 @@ class Hivemind:
                 self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
             self.policies = ValueIterations(foodGrid, beliefs, self)
+            self.distancer = distancer
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
@@ -608,7 +610,10 @@ class Hivemind:
         if "Food Dist" in iterable:
             features["Food Dist"] = 1 / (self.foodDistanceFeature(position) + 1)
         if "Enemy Dist" in iterable:
-            features["Enemy Dist"] = 1 / (self.enemyDistanceFeature(position) + 1)
+            distances = []
+            for enemy in self.enemyIndexes:
+                distances.append(self.enemyDistanceFeature(position, enemy))
+            features["Enemy Dist"] = 1 / (min(distances) + 1)
         # Misc Features
         if "Score" in iterable:
             features["Score"] = self.scoreFeature(position)
@@ -711,48 +716,12 @@ class Hivemind:
                 for successor in successors:
                     fringe.update(successor, successor[1])
 
-    def enemyDistanceFeature(self, position):
-        # Initialise search
-        fringe = util.PriorityQueue()
-        visited = {}
-        boardFeature = self.board.positions[position]
-        if boardFeature.isNode:
-            fringe.push((boardFeature.position, 0), 0)
-        else:
-            for node in boardFeature.distances(positions):
-                fringe.push(node[0].position, node[1])
-        # While search hasn't failed
-        while not fringe.isEmpty():
-            next, cost = fringe.pop()
-            boardFeature = self.board.positions[next]
-            # Goal test
-            if not boardFeature.isNode:
-                return cost
-            else:
-                prob = 0
-                for agent in self.enemyIndexes:
-                    prob += self.history[-1][1][agent][next]
-                if prob > 0:
-                    return cost
-            # Successor generation
-            if next not in visited:
-                visited[next] = cost
-                edges = [boardFeature.exits[exit] for exit in boardFeature.exits]
-                successors = []
-                for edge in edges:
-                    for agent in self.enemyIndexes:
-                        if edge.calcAgentProb(self.history[-1][1][agent][next]) > 0:
-                            distance = 1
-                            for pos in edge.positions:
-                                if self.history[-1][1][agent][pos] > 0:
-                                    successors.append((pos, cost + distance))
-                                    break
-                                distance += 1
-                        else:
-                            node = edge.end(boardFeature)
-                            successors.append((node.position, cost + edge.weight()))
-                for successor in successors:
-                    fringe.update(successor, successor[1])
+    def enemyDistanceFeature(self, position, enemyIndex):
+        belief = self.history[-1][1][enemyIndex]
+        distance = 0
+        for pos in belief:
+            distance += self.distancer.getDistance(position, pos) * belief[pos]
+        return distance
 
     def scoreFeature(self, position):
         boardFeature = self.board.positions[position]
@@ -814,7 +783,7 @@ class GreedyHivemindAgent(CaptureAgent):
 
   def registerInitialState(self, gameState):
     CaptureAgent.registerInitialState(self, gameState)
-    self.hivemind.registerInitialState(self.index, gameState)
+    self.hivemind.registerInitialState(self.index, gameState, self.distancer)
 
   def findBestActions(self, gameState, policy):
     board = self.hivemind.board
@@ -891,7 +860,7 @@ class DefensiveHivemindAgent(CaptureAgent):
 
   def registerInitialState(self, gameState):
     CaptureAgent.registerInitialState(self, gameState)
-    self.hivemind.registerInitialState(self.index, gameState)
+    self.hivemind.registerInitialState(self.index, gameState, self.distancer)
 
   def findBestActions(self, gameState, policy, reciprocal=False):
     board = self.hivemind.board
