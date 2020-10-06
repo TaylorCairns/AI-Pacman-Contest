@@ -576,32 +576,35 @@ class Hivemind:
 
     def getFeatures(self, position, iterable):
         features = util.Counter()
+        # Boolean Features
+        if "On Edge" in iterable:
+            features["On Edge"] = self.onEdgeFeature(position)
+        if "Dead End" in iterable:
+            features["Dead End"] = self.inDeadEndFeature(position)
+        if "Surrounded" in iterable:
+            features["Surrounded"] = self.surroundedFeature(position)
+        if "Grab Food" in iterable:
+            features["Grab Food"] = self.eatsFoodFeature(position)
+        if "Capsule" in iterable:
+            features["Capsule"] = self.eatsCapsuleFeature(position)
+        # Distance Features
+        if "Border" in iterable:
+            features["Border"] = 1 / (self.borderDistanceFeature(position) + 1)
+        if "Food Dist" in iterable:
+            features["Food Dist"] = 1 / (self.foodDistanceFeature(position) + 1)
+        if "Enemy Dist" in iterable:
+            features["Enemy Dist"] = 1 / (self.enemyDistanceFeature(position) + 1)
+        # Misc Features
         if "Score" in iterable:
             features["Score"] = self.scoreFeature(self.history[-1][0])
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
-        if "Border" in iterable:
-            features["Border"] = self.borderDistanceFeature(position)
-        if "Surrounded" in iterable:
-            features["Surrounded"] = self.surroundedFeature(position)
         if "Carrying" in iterable:
             features["Carrying"] = self.foodCarriedFeature()
-        if "Capsule" in iterable:
-            features["Capsule"] = self.eatsCapsuleFeature(position)
-        if "Dead End" in iterable:
-            features["Dead End"] = self.inDeadEndFeature(position)
-        if "On Edge" in iterable:
-            features["On Edge"] = self.onEdgeFeature(position)
-        if "Grab Food" in iterable:
-            features["Grab Food"] = self.eatsFoodFeature(position)
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position)
         if "Near Enemy" in iterable:
             features["Near Enemy"] = self.oneAwayFeature(position)
-        if "Food Dist" in iterable:
-            features["Food Dist"] = self.foodDistanceFeature(position)
-        if "Enemy Dist" in iterable:
-            features["Enemy Dist"] = self.enemyDistanceFeature(position)
         return features
 
     """
