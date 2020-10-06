@@ -587,6 +587,9 @@ class Hivemind:
         return foodGrid
 
     def getFeatures(self, position, iterable):
+        """
+        Takes the future position to get features for and a iterable of the features you want.
+        """
         features = util.Counter()
         # Boolean Features
         if "On Edge" in iterable:
@@ -612,7 +615,7 @@ class Hivemind:
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature()
+            features["Carrying"] = self.foodCarriedFeature(position)
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position)
         if "Near Enemy" in iterable:
@@ -763,11 +766,15 @@ class Hivemind:
         return score / initialFood
 
     def turnsRemainingFeature(self):
-        return 300 - ((len(self.history) - 1) / 2)
+        return 300 - (len(self.history) / 2)
 
-    def foodCarriedFeature(self):
+    def foodCarriedFeature(self, position):
+        boardFeature = self.board.positions[position]
+        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
+            return 0
         index = len(self.history) % 2
-        return self.history[-1][0].getAgentState(index).numCarrying
+        carried = self.history[-1][0].getAgentState(index).numCarrying
+        return carried += self.eatsFoodFeature(position)
 
     def nearbyFoodFeature(self, position):
         return self.board.positions[position].neighbouringFood(self.getEnemyFood())
