@@ -139,15 +139,24 @@ class BoardEdge:
             positions.append(self.positions[index + 1])
         return positions
 
+    def isRed(self):
+        colours = [end.isRed() for end in self.ends]
+        if all(colours):
+            return True
+        elif not any(colours):
+            return False
+        else:
+            return None
+
 class BoardNode:
     """
     Represents a junction or terminal point of the board
     """
-    def __init__(self, position, exits, isRed):
+    def __init__(self, position, exits, red):
         self.isNode = True
         self.onBorder = False
         self.position = position
-        self.isRed = isRed
+        self.red = red
         self.exits = {}
         for action in exits:
             self.exits[action] = None
@@ -208,6 +217,9 @@ class BoardNode:
             elif self == edge.ends[1]:
                 positions.append(edge.positions[-1])
         return positions
+
+    def isRed(self):
+        return self.red
 
 class BoardGraph:
     """
@@ -307,7 +319,7 @@ class ValueIterations:
             boardFeature = self.hivemind.board.positions[p]
             if not boardFeature.isNode:
                 boardFeature = boardFeature.ends[0]
-            if boardFeature.isRed == self.hivemind.isRed:
+            if boardFeature.isRed() == self.hivemind.isRed:
                 enemyValues[p] = agentPenalty*beliefState[p]
             else:
                 forecast = self.hivemind.forecastBelief(beliefState)
@@ -353,7 +365,7 @@ class ValueIterations:
         values = {}
         for pos in self.hivemind.board.nodes:
             node = self.hivemind.board.nodes[pos]
-            if self.hivemind.isRed == node.isRed and node.onBorder:
+            if self.hivemind.isRed == node.isRed() and node.onBorder:
                 value = 10
             else:
                 value = 0
@@ -383,7 +395,7 @@ class ValueIterations:
                 boardFeature = self.hivemind.board.positions[p]
                 if not boardFeature.isNode:
                     boardFeature = boardFeature.ends[0]
-                if boardFeature.isRed == self.hivemind.isRed:
+                if boardFeature.isRed() == self.hivemind.isRed:
                     enemyValues[p] += bounty*beliefs[agent][p]
                 else:
                     enemyValues[p] += 0
@@ -394,7 +406,7 @@ class ValueIterations:
                 boardFeature = self.hivemind.board.positions[p]
                 values = [enemyValues[p]]
                 newValue = 0
-                if boardFeature.isNode and (boardFeature.isRed == self.hivemind.isRed or boardFeature.onBorder):
+                if boardFeature.isNode and (boardFeature.isRed() == self.hivemind.isRed or boardFeature.onBorder):
                     for exit in boardFeature.exits:
                         edge = boardFeature.exits[exit]
                         newPos = None
@@ -407,7 +419,7 @@ class ValueIterations:
                                 newPos = edge.positions[-1]
                         values.append(enemyValues[newPos])
                     newValue = discount*max(values) + enemyValues[p]
-                elif not(boardFeature.isNode) and (boardFeature.ends[0].isRed == self.hivemind.isRed):
+                elif not(boardFeature.isNode) and (boardFeature.ends[0].isRed() == self.hivemind.isRed):
                     index = boardFeature.positions.index(p)
                     length = len(boardFeature.positions)
                     if index - 1 < 0:
@@ -839,7 +851,7 @@ class GreedyHivemindAgent(CaptureAgent):
         dist.append(self.getMazeDistance(pos, belief))
     closest = min(dist)
     closestList = [a for a, v in zip(self.hivemind.enemyIndexes, dist) if v == closest]
-    if boardFeature.isRed != self.hivemind.isRed and closest < 6:
+    if boardFeature.isRed() != self.hivemind.isRed and closest < 6:
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
