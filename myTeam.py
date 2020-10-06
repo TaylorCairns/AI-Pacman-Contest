@@ -598,8 +598,10 @@ class Hivemind:
             features["On Edge"] = self.onEdgeFeature(position)
         if "Dead End" in iterable:
             features["Dead End"] = self.inDeadEndFeature(position)
-        if "Surrounded" in iterable:
-            features["Surrounded"] = self.surroundedFeature(position)
+        if "Home Side" in iterable:
+            features["Home Side"] = self.homeSideFeature(position)
+        if "Scared" in iterable:
+            features["Scared"] = self.scaredFeature()
         if "Grab Food" in iterable:
             features["Grab Food"] = self.eatsFoodFeature(position)
         if "Capsule" in iterable:
@@ -636,6 +638,13 @@ class Hivemind:
     def inDeadEndFeature(self, position):
         return 1 if self.board.positions[position].isDeadEnd() else 0
 
+    def homeSideFeature(self, position):
+        return 1 if self.board.positions[position].isRed() == self.isRed else -1
+
+    def scaredFeature(self):
+        index = len(self.history) % 2
+        timer = self.history[-1][0].getAgentState(index).scaredTimer
+        return 1 if timer > 1 else 0
 
     def eatsFoodFeature(self, position):
         x, y = position
@@ -743,8 +752,7 @@ class Hivemind:
             return 0
         index = len(self.history) % 2
         carried = self.history[-1][0].getAgentState(index).numCarrying
-        carried += self.eatsFoodFeature(position)
-        return carried
+        return carried + self.eatsFoodFeature(position)
 
     def nearbyFoodFeature(self, position):
         return self.board.positions[position].neighbouringFood(self.getEnemyFood())
