@@ -577,18 +577,18 @@ class Hivemind:
     """
     Feature Extractors
     """
-    def scoreFeature(gameState):
+    def scoreFeature(self, gameState):
         score = gameState.data.score
         if not self.isRed:
             score *= -1
         initialFood = self.history[0][0].getRedFood().count()
         return score / initialFood
 
-    def eatsFoodFeature(position):
+    def eatsFoodFeature(self, position):
         x, y = position
         return 1 if self.getEnemyFood()[x][y] else 0
 
-    def eatsCapsuleFeature(position):
+    def eatsCapsuleFeature(self, position):
         capsules = None
         if self.isRed:
             capsules = self.history[-1][0].getBlueCapsules()
@@ -596,16 +596,16 @@ class Hivemind:
             capsules = self.history[-1][0].getRedCapsules()
         return 1 if position in capsules else 0
 
-    def onEdgeFeature(position):
+    def onEdgeFeature(self, position):
         return 1 if not self.board.positions[position].isNode else 0
 
-    def inDeadEndFeature(position):
+    def inDeadEndFeature(self, position):
         return 1 if self.board.positions[position].isDeadEnd() else 0
 
-    def foodCarriedFeature(agent):
+    def foodCarriedFeature(self, agent):
         return self.history[-1][0].getAgentState(agent).numCarrying
 
-    def enemiesOneAway(position):
+    def enemiesOneAway(self, position):
         sumProb = 0
         positions = self.board.positions[position].oneAway(position)
         for agent in self.enemyIndexes:
@@ -614,7 +614,7 @@ class Hivemind:
                 sumProb += self.history[-1][1][agent][pos]
         return sumProb
 
-    def borderDistanceFeature(position):
+    def borderDistanceFeature(self, position):
         # Initialise search
         fringe = util.PriorityQueue()
         visited = {}
@@ -644,7 +644,7 @@ class Hivemind:
                     hCost = int(abs(mid - successor[0].position[0]))
                     fringe.update(successor, successor[1] + hCost)
 
-    def foodDistanceFeature(position):
+    def foodDistanceFeature(self, position):
         foodGrid = self.getEnemyFood()
         # Initialise search
         fringe = util.PriorityQueue()
@@ -681,7 +681,7 @@ class Hivemind:
                 for successor in successors:
                     fringe.update(successor, successor[1])
 
-    def enemiesDistanceFeature(position):
+    def enemiesDistanceFeature(self, position):
         # Initialise search
         fringe = util.PriorityQueue()
         visited = {}
@@ -724,10 +724,10 @@ class Hivemind:
                 for successor in successors:
                     fringe.update(successor, successor[1])
 
-    def nearbyFoodFeature(position):
+    def nearbyFoodFeature(self, position):
         return self.board.positions[position].neighbouringFood(self.getEnemyFood())
 
-    def turnsRemainingFeature():
+    def turnsRemainingFeature(self):
         return 300 - ((len(self.history) - 1) / 2)
 
 #################
