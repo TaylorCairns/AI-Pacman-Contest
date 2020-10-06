@@ -659,7 +659,7 @@ class Hivemind:
             hCost = int(abs(mid - boardFeature.position[0]))
             fringe.push((boardFeature, 0), hCost)
         else:
-            for node in boardFeature.distances(positions):
+            for node in boardFeature.distances(position):
                 hCost = int(abs(mid - node[0].position[0]))
                 fringe.push(node, node[1] + hCost)
         # While search hasn't failed
@@ -688,8 +688,8 @@ class Hivemind:
         if boardFeature.isNode:
             fringe.push((boardFeature.position, 0), 0)
         else:
-            for node in boardFeature.distances(positions):
-                fringe.push(node[0].position, node[1])
+            for end in boardFeature.distances(position):
+                fringe.push((end[0].position, end[1]), end[1])
         # While search hasn't failed
         while not fringe.isEmpty():
             next, cost = fringe.pop()
@@ -743,7 +743,8 @@ class Hivemind:
             return 0
         index = len(self.history) % 2
         carried = self.history[-1][0].getAgentState(index).numCarrying
-        return carried += self.eatsFoodFeature(position)
+        carried += self.eatsFoodFeature(position)
+        return carried
 
     def nearbyFoodFeature(self, position):
         return self.board.positions[position].neighbouringFood(self.getEnemyFood())
