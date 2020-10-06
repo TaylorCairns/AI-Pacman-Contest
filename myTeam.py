@@ -622,16 +622,12 @@ class Hivemind:
     """
     Feature Extractors
     """
-    def scoreFeature(self, position):
-        boardFeature = self.board.positions[position]
-        gameState = self.history[-1][0]
-        score = gameState.data.score
-        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
-            score += gameState.getAgentState(len(self.history) % 2).numCarrying
-        if not self.isRed:
-            score *= -1
-        initialFood = self.history[0][0].getRedFood().count()
-        return score / initialFood
+    def onEdgeFeature(self, position):
+        return 1 if not self.board.positions[position].isNode else 0
+
+    def inDeadEndFeature(self, position):
+        return 1 if self.board.positions[position].isDeadEnd() else 0
+
 
     def eatsFoodFeature(self, position):
         x, y = position
@@ -644,25 +640,6 @@ class Hivemind:
         else:
             capsules = self.history[-1][0].getRedCapsules()
         return 1 if position in capsules else 0
-
-    def onEdgeFeature(self, position):
-        return 1 if not self.board.positions[position].isNode else 0
-
-    def inDeadEndFeature(self, position):
-        return 1 if self.board.positions[position].isDeadEnd() else 0
-
-    def foodCarriedFeature(self):
-        index = len(self.history) % 2
-        return self.history[-1][0].getAgentState(index).numCarrying
-
-    def enemiesOneAway(self, position):
-        sumProb = 0
-        positions = self.board.positions[position].oneAway(position)
-        for agent in self.enemyIndexes:
-            sumProb += self.history[-1][1][agent][position]
-            for pos in positions:
-                sumProb += self.history[-1][1][agent][pos]
-        return sumProb
 
     def borderDistanceFeature(self, position):
         # Initialise search
@@ -774,11 +751,35 @@ class Hivemind:
                 for successor in successors:
                     fringe.update(successor, successor[1])
 
-    def nearbyFoodFeature(self, position):
-        return self.board.positions[position].neighbouringFood(self.getEnemyFood())
+    def scoreFeature(self, position):
+        boardFeature = self.board.positions[position]
+        gameState = self.history[-1][0]
+        score = gameState.data.score
+        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
+            score += gameState.getAgentState(len(self.history) % 2).numCarrying
+        if not self.isRed:
+            score *= -1
+        initialFood = self.history[0][0].getRedFood().count()
+        return score / initialFood
 
     def turnsRemainingFeature(self):
         return 300 - ((len(self.history) - 1) / 2)
+
+    def foodCarriedFeature(self):
+        index = len(self.history) % 2
+        return self.history[-1][0].getAgentState(index).numCarrying
+
+    def nearbyFoodFeature(self, position):
+        return self.board.positions[position].neighbouringFood(self.getEnemyFood())
+
+    def enemiesOneAway(self, position):
+        sumProb = 0
+        positions = self.board.positions[position].oneAway(position)
+        for agent in self.enemyIndexes:
+            sumProb += self.history[-1][1][agent][position]
+            for pos in positions:
+                sumProb += self.history[-1][1][agent][pos]
+        return sumProb
 
 #################
 # Team creation #
