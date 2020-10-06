@@ -727,6 +727,9 @@ class Hivemind:
     def nearbyFoodFeature(position):
         return self.board.positions[position].neighbouringFood(self.getEnemyFood())
 
+    def turnsRemainingFeature():
+        return 300 - ((len(self.history) - 1) / 2)
+
 #################
 # Team creation #
 #################
