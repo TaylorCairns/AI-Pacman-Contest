@@ -608,7 +608,7 @@ class Hivemind:
             features["Enemy Dist"] = 1 / (self.enemyDistanceFeature(position) + 1)
         # Misc Features
         if "Score" in iterable:
-            features["Score"] = self.scoreFeature(self.history[-1][0])
+            features["Score"] = self.scoreFeature(position)
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
@@ -622,8 +622,12 @@ class Hivemind:
     """
     Feature Extractors
     """
-    def scoreFeature(self, gameState):
+    def scoreFeature(self, position):
+        boardFeature = self.board.positions[position]
+        gameState = self.history[-1][0]
         score = gameState.data.score
+        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
+            score += gameState.getAgentState(len(self.history) % 2).numCarrying
         if not self.isRed:
             score *= -1
         initialFood = self.history[0][0].getRedFood().count()
