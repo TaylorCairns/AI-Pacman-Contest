@@ -574,6 +574,36 @@ class Hivemind:
             foodGrid = self.history[-1][0].getRedFood()
         return foodGrid
 
+    def getFeatures(self, position, agent, iterable):
+        features = util.Counter()
+        if "Score" in iterable:
+            features["Score"] = self.scoreFeature(self.history[-1][0])
+        if "Turns" in iterable:
+            features["Turns"] = self.turnsRemainingFeature()
+        if "Border" in iterable:
+            features["Border"] = self.borderDistanceFeature(position)
+        if "Surrounded" in iterable:
+            features["Surrounded"] = self.surroundedFeature(position)
+        if "Carrying" in iterable:
+            features["Carrying"] = self.foodCarriedFeature(agent)
+        if "Capsule" in iterable:
+            features["Capsule"] = self.eatsCapsuleFeature(position)
+        if "Dead End" in iterable:
+            features["Dead End"] = self.inDeadEndFeature(position)
+        if "On Edge" in iterable:
+            features["On Edge"] = self.onEdgeFeature(position)
+        if "Grab Food" in iterable:
+            features["Grab Food"] = self.eatsFoodFeature(position)
+        if "Near Food" in iterable:
+            features["Near Food"] = self.nearbyFoodFeature(position)
+        if "Near Enemy" in iterable:
+            features["Near Enemy"] = self.oneAwayFeature(position)
+        if "Food Dist" in iterable:
+            features["Food Dist"] = self.foodDistanceFeature(position)
+        if "Enemy Dist" in iterable:
+            features["Enemy Dist"] = self.enemyDistanceFeature(position)
+        return features
+
     """
     Feature Extractors
     """
@@ -681,7 +711,7 @@ class Hivemind:
                 for successor in successors:
                     fringe.update(successor, successor[1])
 
-    def enemiesDistanceFeature(self, position):
+    def enemyDistanceFeature(self, position):
         # Initialise search
         fringe = util.PriorityQueue()
         visited = {}
