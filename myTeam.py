@@ -574,7 +574,7 @@ class Hivemind:
             foodGrid = self.history[-1][0].getRedFood()
         return foodGrid
 
-    def getFeatures(self, position, agent, iterable):
+    def getFeatures(self, position, iterable):
         features = util.Counter()
         if "Score" in iterable:
             features["Score"] = self.scoreFeature(self.history[-1][0])
@@ -585,7 +585,7 @@ class Hivemind:
         if "Surrounded" in iterable:
             features["Surrounded"] = self.surroundedFeature(position)
         if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature(agent)
+            features["Carrying"] = self.foodCarriedFeature()
         if "Capsule" in iterable:
             features["Capsule"] = self.eatsCapsuleFeature(position)
         if "Dead End" in iterable:
@@ -632,8 +632,9 @@ class Hivemind:
     def inDeadEndFeature(self, position):
         return 1 if self.board.positions[position].isDeadEnd() else 0
 
-    def foodCarriedFeature(self, agent):
-        return self.history[-1][0].getAgentState(agent).numCarrying
+    def foodCarriedFeature(self):
+        index = len(self.history) % 2
+        return self.history[-1][0].getAgentState(index).numCarrying
 
     def enemiesOneAway(self, position):
         sumProb = 0
