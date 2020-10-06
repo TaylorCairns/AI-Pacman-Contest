@@ -601,6 +601,12 @@ class Hivemind:
             foodGrid = gameState.getRedFood()
         return foodGrid
 
+    def getBeliefDistributions(self):
+        distributions = []
+        for agentIndex in range(self.history[-1][0].getNumAgents()):
+            distributions.append(self.history[-1][1][agentIndex].copy())
+        return distributions
+
     def getFeatures(self, state, action, index, iterable):
         """
         Takes the future position to get features for and a iterable of the features you want.
