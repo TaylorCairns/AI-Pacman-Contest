@@ -916,7 +916,6 @@ class ApproximateQAgent(Agent):
         self.display = None
         self.hivemind = hivemind
         self.weights = util.Counter()
-        self.featExtractor = hivemind
         self.explorationChance = float(epsilon)
         self.learningRate = float(alpha)
         self.discount = float(gamma)
@@ -948,16 +947,13 @@ class ApproximateQAgent(Agent):
         return state
 
     def getQValue(self, state, action):
-        return self.weights * self.featExtractor.getFeatures(state, action)
+        return self.weights * self.hivemind.getFeatures(state, action)
 
     def computeValueFromQValues(self, state):
-        value = float("-inf")
+        value = 0.0
         actions = self.getLegalActions(state)
         if len(actions) > 0:
-            for action in actions:
-                value = max(value, self.getQValue(state, action))
-        else:
-            value = 0.0
+            value = max([self.getQValue(state, action) for action in actions])
         return value
 
     def computeActionFromQValues(self, state):
@@ -977,7 +973,7 @@ class ApproximateQAgent(Agent):
     def update(self, state, action, nextState, reward):
         oldValue = self.getQValue(state, action)
         difference = (reward + self.discount * self.computeValueFromQValues(nextState)) - oldValue
-        features = self.featExtractor.getFeatures(state, action)
+        features = self.hivemind.getFeatures(state, action, self.weights)
         for feat in features:
             self.weights[feat] = self.weights[feat] + self.learningRate * difference * features[feat]
 
@@ -989,7 +985,7 @@ class ApproximateQAgent(Agent):
             # We're halfway from one position to the next
             return state.getLegalActions(self.index)[0]
         else:
-            legalActions = self.getLegalActions(state)
+            legalActions = state.getLegalActions(self.index)
             action = None
             if len(legalActions) > 0:
                 if util.flipCoin(self.explorationChance):
@@ -1072,7 +1068,7 @@ class ApproximateQAgent(Agent):
         if self.episodesSoFar == self.numTraining:
             # you might want to print your weights here for debugging
             "*** YOUR CODE HERE ***"
-            pass
+            print(self.weights)
 
     ### Debug functions copied from CaptureAgent
     def debugDraw(self, cells, color, clear=False):
