@@ -16,6 +16,7 @@ from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
 import game
+import distanceCalculator
 
 class ModRange:
     """A generator class for getting ranges that wrap around modulo boundaries"""
@@ -82,10 +83,18 @@ class BoardEdge:
         return len(self.positions) + 1
 
     def end(self, node):
-        if node != self.ends[0]:
+        if node == self.ends[1]:
             return self.ends[0]
-        else:
+        elif node == self.ends[0]:
             return self.ends[1]
+        else:
+            return None
+
+    def calcAgentProb(self, belief):
+        prob = 0
+        for pos in self.positions:
+            prob += belief[pos]
+        return prob
 
     def distances(self, position):
         index = self.positions.index(position)
@@ -111,15 +120,44 @@ class BoardEdge:
         else:
             return False
 
+    def isDeadEnd(self):
+        deadEnd = False
+        for end in ends:
+            if end.isDeadEnd():
+                deadEnd = True
+        return deadEnd
+
+    def oneAway(self, position):
+        positions = []
+        index = self.positions.index(position)
+        if index == 0:
+            positions.append(self.end[0].position)
+        else:
+            positions.append(self.positions[index - 1])
+        if index == len(self.positions) - 1:
+            positions.append(self.end[1].position)
+        else:
+            positions.append(self.positions[index + 1])
+        return positions
+
+    def isRed(self):
+        colours = [end.isRed() for end in self.ends]
+        if all(colours):
+            return True
+        elif not any(colours):
+            return False
+        else:
+            return None
+
 class BoardNode:
     """
     Represents a junction or terminal point of the board
     """
-    def __init__(self, position, exits, isRed):
+    def __init__(self, position, exits, red):
         self.isNode = True
         self.onBorder = False
         self.position = position
-        self.isRed = isRed
+        self.red = red
         self.exits = {}
         for action in exits:
             self.exits[action] = None
@@ -152,6 +190,9 @@ class BoardNode:
                 self.exits[action] = edge
                 nodes[newPos].exits[Directions.REVERSE[edge.actions[-1]]] = edge
 
+    def calcAgentProb(self, belief):
+        return belief[self.position]
+
     def hasFood(self, foodGrid):
         x, y = self.position
         return foodGrid[x][y]
@@ -163,6 +204,24 @@ class BoardNode:
                 food = True
         return food
 
+    def isDeadEnd(self):
+        return False if len(exits) > 1 else True
+
+    def oneAway(self, position):
+        positions = []
+        for exit in self.exits:
+            edge = self.exits[exit]
+            if edge.weight() == 1:
+                positions.append(edge.end(self).position)
+            elif self == edge.ends[0]:
+                positions.append(edge.positions[0])
+            elif self == edge.ends[1]:
+                positions.append(edge.positions[-1])
+        return positions
+
+    def isRed(self):
+        return self.red
+
 class BoardGraph:
     """
     A graph representation of the pacman board
@@ -170,7 +229,7 @@ class BoardGraph:
     def __init__(self, walls):
         self.positions = {}
         self.nodes = {}
-        self.border = {True: {}, False: {}}
+        self.border = {}
         borderEast = walls.width // 2
         # Create nodes for all unwalled positions that do not have exactly two
         #   unwalled neighbors
@@ -195,18 +254,18 @@ class BoardGraph:
                     node = BoardNode(posEast, neighbours, False)
                     self.positions[posEast] = node
                     self.nodes[posEast] = node
-                    self.border[False][posEast] = node
+                    self.border[posEast] = node
                 else:
-                    self.border[False][posEast] = self.nodes[posEast]
+                    self.border[posEast] = self.nodes[posEast]
                 posWest = (borderWest, y)
                 if posWest not in self.nodes:
                     neighbours = Vectors.findNeigbours(borderWest, y, walls)
                     node = BoardNode(posWest, neighbours, True)
                     self.positions[posWest] = node
                     self.nodes[posWest] = node
-                    self.border[True][posWest] = node
+                    self.border[posWest] = node
                 else:
-                    self.border[False][posWest] = self.nodes[posWest]
+                    self.border[posWest] = self.nodes[posWest]
                 self.nodes[posEast].onBorder = True
                 self.nodes[posWest].onBorder = True
         # Create edges between nodes
@@ -261,7 +320,7 @@ class ValueIterations:
             boardFeature = self.hivemind.board.positions[p]
             if not boardFeature.isNode:
                 boardFeature = boardFeature.ends[0]
-            if boardFeature.isRed == self.hivemind.isRed:
+            if boardFeature.isRed() == self.hivemind.isRed:
                 enemyValues[p] = agentPenalty*beliefState[p]
             else:
                 forecast = self.hivemind.forecastBelief(beliefState)
@@ -307,7 +366,7 @@ class ValueIterations:
         values = {}
         for pos in self.hivemind.board.nodes:
             node = self.hivemind.board.nodes[pos]
-            if self.hivemind.isRed == node.isRed and node.onBorder:
+            if self.hivemind.isRed == node.isRed() and node.onBorder:
                 value = 10
             else:
                 value = 0
@@ -337,7 +396,7 @@ class ValueIterations:
                 boardFeature = self.hivemind.board.positions[p]
                 if not boardFeature.isNode:
                     boardFeature = boardFeature.ends[0]
-                if boardFeature.isRed == self.hivemind.isRed:
+                if boardFeature.isRed() == self.hivemind.isRed:
                     enemyValues[p] += bounty*beliefs[agent][p]
                 else:
                     enemyValues[p] += 0
@@ -348,7 +407,7 @@ class ValueIterations:
                 boardFeature = self.hivemind.board.positions[p]
                 values = [enemyValues[p]]
                 newValue = 0
-                if boardFeature.isNode and (boardFeature.isRed == self.hivemind.isRed or boardFeature.onBorder):
+                if boardFeature.isNode and (boardFeature.isRed() == self.hivemind.isRed or boardFeature.onBorder):
                     for exit in boardFeature.exits:
                         edge = boardFeature.exits[exit]
                         newPos = None
@@ -361,7 +420,7 @@ class ValueIterations:
                                 newPos = edge.positions[-1]
                         values.append(enemyValues[newPos])
                     newValue = discount*max(values) + enemyValues[p]
-                elif not(boardFeature.isNode) and (boardFeature.ends[0].isRed == self.hivemind.isRed):
+                elif not(boardFeature.isNode) and (boardFeature.ends[0].isRed() == self.hivemind.isRed):
                     index = boardFeature.positions.index(p)
                     length = len(boardFeature.positions)
                     if index - 1 < 0:
@@ -389,6 +448,7 @@ class Hivemind:
         self.board = None
         self.history = []
         self.policies = None
+        self.distancer = None
 
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
@@ -407,6 +467,8 @@ class Hivemind:
                 self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
             self.policies = ValueIterations(foodGrid, beliefs, self)
+            self.distancer = distanceCalculator.Distancer(gameState.data.layout)
+            self.distancer.getMazeDistances()
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
@@ -528,6 +590,158 @@ class Hivemind:
             foodGrid = self.history[-1][0].getRedFood()
         return foodGrid
 
+    def getFeatures(self, state, action, iterable):
+        """
+        Takes the future position to get features for and a iterable of the features you want.
+        """
+        pos = state.getAgentPosition(len(self.history) % 2)
+        position = newPosition(pos[0], pos[1], action)
+        features = util.Counter()
+        # Boolean Features
+        if "Bias" in iterable:
+            features["Bias"] = 1.0
+        if "On Edge" in iterable:
+            features["On Edge"] = self.onEdgeFeature(position)
+        if "Dead End" in iterable:
+            features["Dead End"] = self.inDeadEndFeature(position)
+        if "Home Side" in iterable:
+            features["Home Side"] = self.homeSideFeature(position)
+        if "Scared" in iterable:
+            features["Scared"] = self.scaredFeature()
+        if "Grab Food" in iterable:
+            features["Grab Food"] = self.eatsFoodFeature(position)
+        if "Capsule" in iterable:
+            features["Capsule"] = self.eatsCapsuleFeature(position)
+        # Distance Features
+        if "Border" in iterable:
+            features["Border"] = 1 / (self.borderDistanceFeature(position) + 1)
+        if "Food Dist" in iterable:
+            features["Food Dist"] = 1 / (self.foodDistanceFeature(position) + 1)
+        if "Enemy Dist" in iterable:
+            distances = []
+            for enemy in self.enemyIndexes:
+                distances.append(self.enemyDistanceFeature(position, enemy))
+            features["Enemy Dist"] = 1 / (min(distances) + 1)
+        # Misc Features
+        if "Score" in iterable:
+            features["Score"] = self.scoreFeature(position)
+        if "Turns" in iterable:
+            features["Turns"] = self.turnsRemainingFeature()
+        if "Carrying" in iterable:
+            features["Carrying"] = self.foodCarriedFeature(position)
+        if "Near Food" in iterable:
+            features["Near Food"] = self.nearbyFoodFeature(position)
+        if "Near Enemy" in iterable:
+            features["Near Enemy"] = self.oneAwayFeature(position)
+        return features
+
+    """
+    Feature Extractors
+    """
+    def onEdgeFeature(self, position):
+        return 1 if not self.board.positions[position].isNode else 0
+
+    def inDeadEndFeature(self, position):
+        return 1 if self.board.positions[position].isDeadEnd() else 0
+
+    def homeSideFeature(self, position):
+        return 1 if self.board.positions[position].isRed() == self.isRed else -1
+
+    def scaredFeature(self):
+        index = len(self.history) % 2
+        timer = self.history[-1][0].getAgentState(index).scaredTimer
+        return 1 if timer > 1 else 0
+
+    def eatsFoodFeature(self, position):
+        x, y = position
+        return 1 if self.getEnemyFood()[x][y] else 0
+
+    def eatsCapsuleFeature(self, position):
+        capsules = None
+        if self.isRed:
+            capsules = self.history[-1][0].getBlueCapsules()
+        else:
+            capsules = self.history[-1][0].getRedCapsules()
+        return 1 if position in capsules else 0
+
+    def borderDistanceFeature(self, position):
+        # Initialise search
+        fringe = util.PriorityQueue()
+        visited = {}
+        mid = self.history[0][0].getWalls().width / 2 + 0.5
+        boardFeature = self.board.positions[position]
+        if boardFeature.isNode:
+            hCost = int(abs(mid - boardFeature.position[0]))
+            fringe.push((boardFeature, 0), hCost)
+        else:
+            for node in boardFeature.distances(position):
+                hCost = int(abs(mid - node[0].position[0]))
+                fringe.push(node, node[1] + hCost)
+        # While search hasn't failed
+        while not fringe.isEmpty():
+            node = fringe.pop()
+            # Goal test
+            if node[0].onBorder:
+                return node[1]
+            # Successor generation
+            if node[0] not in visited:
+                visited[node[0]] = node[1]
+                edges = [node[0].exits[exit] for exit in node[0].exits]
+                costs = [node[1] + edge.weight() for edge in edges]
+                nodes = [edge.end(node[0]) for edge in edges]
+                successors = zip(nodes, costs)
+                for successor in successors:
+                    hCost = int(abs(mid - successor[0].position[0]))
+                    fringe.update(successor, successor[1] + hCost)
+
+    def foodDistanceFeature(self, position):
+        foodList = self.getEnemyFood().asList()
+        distances = []
+        for pos in foodList:
+            distances.append(self.distancer.getDistance(position, pos))
+        return min(distances)
+
+    def enemyDistanceFeature(self, position, enemyIndex):
+        belief = self.history[-1][1][enemyIndex]
+        distance = 0
+        for pos in belief:
+            distance += self.distancer.getDistance(position, pos) * belief[pos]
+        return distance
+
+    def scoreFeature(self, position):
+        boardFeature = self.board.positions[position]
+        gameState = self.history[-1][0]
+        score = gameState.data.score
+        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
+            score += gameState.getAgentState(len(self.history) % 2).numCarrying
+        if not self.isRed:
+            score *= -1
+        initialFood = self.history[0][0].getRedFood().count()
+        return score / initialFood
+
+    def turnsRemainingFeature(self):
+        return 300 - (len(self.history) / 2)
+
+    def foodCarriedFeature(self, position):
+        boardFeature = self.board.positions[position]
+        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
+            return 0
+        index = len(self.history) % 2
+        carried = self.history[-1][0].getAgentState(index).numCarrying
+        return carried + self.eatsFoodFeature(position)
+
+    def nearbyFoodFeature(self, position):
+        return self.board.positions[position].neighbouringFood(self.getEnemyFood())
+
+    def enemiesOneAway(self, position):
+        sumProb = 0
+        positions = self.board.positions[position].oneAway(position)
+        for agent in self.enemyIndexes:
+            sumProb += self.history[-1][1][agent][position]
+            for pos in positions:
+                sumProb += self.history[-1][1][agent][pos]
+        return sumProb
+
 #################
 # Team creation #
 #################
@@ -603,7 +817,7 @@ class GreedyHivemindAgent(CaptureAgent):
         dist.append(self.getMazeDistance(pos, belief))
     closest = min(dist)
     closestList = [a for a, v in zip(self.hivemind.enemyIndexes, dist) if v == closest]
-    if boardFeature.isRed != self.hivemind.isRed and closest < 6:
+    if boardFeature.isRed() != self.hivemind.isRed and closest < 6:
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
