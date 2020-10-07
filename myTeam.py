@@ -590,12 +590,16 @@ class Hivemind:
             foodGrid = self.history[-1][0].getRedFood()
         return foodGrid
 
-    def getFeatures(self, position, iterable):
+    def getFeatures(self, state, action, iterable):
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
+        pos = state.getAgentPosition(len(self.history) % 2)
+        position = newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
+        if "Bias" in iterable:
+            features["Bias"] = 1.0
         if "On Edge" in iterable:
             features["On Edge"] = self.onEdgeFeature(position)
         if "Dead End" in iterable:
