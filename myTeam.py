@@ -594,7 +594,7 @@ class Hivemind:
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
-        pos = state.getAgentPosition((len(self.history) - 1) % 2)
+        pos = state.getAgentPosition(self.teamIndexes[(len(self.history)-1) % 2])
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
