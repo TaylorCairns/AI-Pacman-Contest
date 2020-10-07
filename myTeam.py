@@ -14,7 +14,7 @@
 
 from captureAgents import CaptureAgent
 import random, time, util
-from game import Directions
+from game import Directions, Agent
 import game
 import distanceCalculator
 
@@ -906,3 +906,198 @@ class DefensiveHivemindAgent(CaptureAgent):
             foodPolicy = self.hivemind.policies.foodValues
             value, actions = self.findBestActions(gameState, foodPolicy)
     return random.choice(actions)
+
+class ApproximateQAgent(Agent):
+    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0, **args):
+        # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
+        self.index = index
+        self.red = None
+        self.observationHistory = []
+        self.display = None
+        self.hivemind = hivemind
+        self.weights = util.Counter()
+        self.featExtractor = hivemind
+        self.explorationChance = float(epsilon)
+        self.learningRate = float(alpha)
+        self.discount = float(gamma)
+        # Training reporting variables
+        self.numTraining = int(numTraining)
+        self.episodesSoFar = 0
+        self.accumTrainRewards = 0.0
+        self.accumTestRewards = 0.0
+
+    # Function for customizing Hivemind Q-Learning Agent
+    def setWeights(self, weights):
+        self.weights = weights
+
+    # ApproximateQAgent functions copied from p3-reinforcement-s3689650
+    def registerInitialState(self, state):
+        self.startEpisode()
+        self.red = gameState.isOnRedTeam(self.index)
+        import __main__
+        if '_display' in dir(__main__):
+          self.display = __main__._display
+        self.hivemind.registerInitialState(self.index, gameState)
+
+    def observationFunction(self, gameState):
+        state = gameState.makeObservation(self.index)
+        if not self.lastState is None:
+            reward = state.getScore() - self.lastState.getScore()
+            self.episodeRewards += reward
+            self.update(self.lastState, self.lastAction, state, reward)
+        return state
+
+    def getQValue(self, state, action):
+        return self.weights * self.featExtractor.getFeatures(state, action)
+
+    def computeValueFromQValues(self, state):
+        value = float("-inf")
+        actions = self.getLegalActions(state)
+        if len(actions) > 0:
+            for action in actions:
+                value = max(value, self.getQValue(state, action))
+        else:
+            value = 0.0
+        return value
+
+    def computeActionFromQValues(self, state):
+        bestActions = []
+        bestValue = self.computeValueFromQValues(state)
+        actions = self.getLegalActions(state)
+        for action in actions:
+            if self.getQValue(state, action) == bestValue:
+                bestActions.append(action)
+        bestAction = None
+        if len(bestActions) > 0:
+            bestAction = random.choice(bestActions)
+        elif len(self.getLegalActions(state)) > 0:
+            bestAction = random.choice(self.getLegalActions(state))
+        return bestAction
+
+    def update(self, state, action, nextState, reward):
+        oldValue = self.getQValue(state, action)
+        difference = (reward + self.discount * self.computeValueFromQValues(nextState)) - oldValue
+        features = self.featExtractor.getFeatures(state, action)
+        for feat in features:
+            self.weights[feat] = self.weights[feat] + self.learningRate * difference * features[feat]
+
+    def getAction(self, state):
+        self.observationHistory.append(state)
+        myState = state.getAgentState(self.index)
+        myPos = myState.getPosition()
+        if myPos != nearestPoint(myPos):
+            # We're halfway from one position to the next
+            return state.getLegalActions(self.index)[0]
+        else:
+            legalActions = self.getLegalActions(state)
+            action = None
+            if len(legalActions) > 0:
+                if util.flipCoin(self.explorationChance):
+                    action = random.choice(legalActions)
+                else:
+                    action = self.computeActionFromQValues(state)
+            self.lastState = state
+            self.lastAction = action
+            return action
+
+    ### Episode Related Functions copied from p3-reinforcement
+    def startEpisode(self):
+        """
+          Called by environment when new episode is starting
+        """
+        self.lastState = None
+        self.lastAction = None
+        self.episodeRewards = 0.0
+
+    def stopEpisode(self):
+        """
+          Called by environment when episode is done
+        """
+        if self.episodesSoFar < self.numTraining:
+            self.accumTrainRewards += self.episodeRewards
+        else:
+            self.accumTestRewards += self.episodeRewards
+        self.episodesSoFar += 1
+        if self.episodesSoFar >= self.numTraining:
+            # Take off the training wheels
+            self.explorationChance = 0.0    # no exploration
+            self.learningRate = 0.0      # no learning
+
+    def isInTraining(self):
+        return self.episodesSoFar < self.numTraining
+
+    def isInTesting(self):
+        return not self.isInTraining()
+
+    def final(self, state):
+        "Called at the end of each game."
+        self.observationHistory = []
+        # call the super-class final method
+        deltaReward = state.getScore() - self.lastState.getScore()
+        self.observeTransition(self.lastState, self.lastAction, state, deltaReward)
+        self.stopEpisode()
+
+        # Make sure we have this var
+        if not 'episodeStartTime' in self.__dict__:
+            self.episodeStartTime = time.time()
+        if not 'lastWindowAccumRewards' in self.__dict__:
+            self.lastWindowAccumRewards = 0.0
+        self.lastWindowAccumRewards += state.getScore()
+
+        NUM_EPS_UPDATE = 100
+        if self.episodesSoFar % NUM_EPS_UPDATE == 0:
+            print('Reinforcement Learning Status:')
+            windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
+            if self.episodesSoFar <= self.numTraining:
+                trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
+                print('\tCompleted %d out of %d training episodes' % (
+                       self.episodesSoFar,self.numTraining))
+                print('\tAverage Rewards over all training: %.2f' % (
+                        trainAvg))
+            else:
+                testAvg = float(self.accumTestRewards) / (self.episodesSoFar - self.numTraining)
+                print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
+                print('\tAverage Rewards over testing: %.2f' % testAvg)
+            print('\tAverage Rewards for last %d episodes: %.2f'  % (
+                    NUM_EPS_UPDATE,windowAvg))
+            print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
+            self.lastWindowAccumRewards = 0.0
+            self.episodeStartTime = time.time()
+
+        if self.episodesSoFar == self.numTraining:
+            msg = 'Training Done (turning off epsilon and alpha)'
+            print('%s\n%s' % (msg,'-' * len(msg)))
+
+        # did we finish training?
+        if self.episodesSoFar == self.numTraining:
+            # you might want to print your weights here for debugging
+            "*** YOUR CODE HERE ***"
+            pass
+
+    ### Debug functions copied from CaptureAgent
+    def debugDraw(self, cells, color, clear=False):
+      if self.display:
+        from captureGraphicsDisplay import PacmanGraphics
+        if isinstance(self.display, PacmanGraphics):
+          if not type(cells) is list:
+            cells = [cells]
+          self.display.debugDraw(cells, color, clear)
+
+    def debugClear(self):
+        if self.display:
+            from captureGraphicsDisplay import PacmanGraphics
+            if isinstance(self.display, PacmanGraphics):
+                self.display.clearDebug()
+
+    def displayDistributionsOverPositions(self, distributions):
+        dists = []
+        for dist in distributions:
+            if dist != None:
+                if not isinstance(dist, util.Counter): raise Exception("Wrong type of distribution")
+                dists.append(dist)
+            else:
+                dists.append(util.Counter())
+        if self.display != None and 'updateDistributions' in dir(self.display):
+            self.display.updateDistributions(dists)
+        else:
+            self._distributions = dists # These can be read by pacclient.py
