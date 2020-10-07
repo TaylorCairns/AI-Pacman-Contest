@@ -691,41 +691,11 @@ class Hivemind:
                     fringe.update(successor, successor[1] + hCost)
 
     def foodDistanceFeature(self, position):
-        foodGrid = self.getEnemyFood()
-        # Initialise search
-        fringe = util.PriorityQueue()
-        visited = {}
-        boardFeature = self.board.positions[position]
-        if boardFeature.isNode:
-            fringe.push((boardFeature.position, 0), 0)
-        else:
-            for end in boardFeature.distances(position):
-                fringe.push((end[0].position, end[1]), end[1])
-        # While search hasn't failed
-        while not fringe.isEmpty():
-            next, cost = fringe.pop()
-            boardFeature = self.board.positions[next]
-            # Goal test
-            if boardFeature.hasFood(foodGrid):
-                return cost
-            # Successor generation
-            if next not in visited:
-                visited[next] = cost
-                edges = [boardFeature.exits[exit] for exit in boardFeature.exits]
-                successors = []
-                for edge in edges:
-                    if edge.hasFood(foodGrid):
-                        distance = 1
-                        for pos in edge.positions:
-                            if foodGrid[pos[0]][pos[1]]:
-                                successors.append((pos, cost + distance))
-                                break
-                            distance += 1
-                    else:
-                        node = edge.end(boardFeature)
-                        successors.append((node.position, cost + edge.weight()))
-                for successor in successors:
-                    fringe.update(successor, successor[1])
+        foodList = self.getEnemyFood().asList()
+        distances = []
+        for pos in foodList:
+            distances.append(self.distancer.getDistance(position, pos))
+        return min(distances)
 
     def enemyDistanceFeature(self, position, enemyIndex):
         belief = self.history[-1][1][enemyIndex]
