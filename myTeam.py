@@ -594,7 +594,7 @@ class Hivemind:
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
-        pos = state.getAgentPosition(self.teamIndexes[(len(self.history)-1) % 2])
+        pos = state.getAgentPosition(self.teamIndexes[len(self.history) % 2])
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
@@ -648,7 +648,7 @@ class Hivemind:
         return 1 if self.board.positions[position].isRed() == self.isRed else -1
 
     def scaredFeature(self):
-        index = len(self.history) % 2
+        index = self.teamIndexes[len(self.history) % 2]
         timer = self.history[-1][0].getAgentState(index).scaredTimer
         return 1 if timer > 1 else 0
 
@@ -713,7 +713,7 @@ class Hivemind:
         gameState = self.history[-1][0]
         score = gameState.data.score
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
-            score += gameState.getAgentState(len(self.history) % 2).numCarrying
+            score += gameState.getAgentState(self.teamIndexes[len(self.history) % 2]).numCarrying
         if not self.isRed:
             score *= -1
         initialFood = self.history[0][0].getRedFood().count()
@@ -726,7 +726,7 @@ class Hivemind:
         boardFeature = self.board.positions[position]
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             return 0
-        index = len(self.history) % 2
+        index = self.teamIndexes[len(self.history) % 2]
         carried = self.history[-1][0].getAgentState(index).numCarrying
         return carried + self.eatsFoodFeature(position)
 
