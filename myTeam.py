@@ -1091,3 +1091,24 @@ class ApproximateQAgent(Agent):
             self.display.updateDistributions(dists)
         else:
             self._distributions = dists # These can be read by pacclient.py
+
+class AllFeaturesAgent(ApproximateQAgent):
+    def __init__(self, *args, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        weights = util.Counter()
+        weights["Bias"] = 0.0
+        weights["On Edge"] = 0.0
+        weights["Dead End"] = 0.0
+        weights["Home Side"] = 0.0
+        weights["Scared"] = 0.0
+        weights["Grab Food"] = 0.0
+        weights["Capsule"] = 0.0
+        weights["Border"] = 0.0
+        weights["Food Dist"] = 0.0
+        weights["Enemy Dist"] = 0.0
+        weights["Score"] = 0.0
+        weights["Turns"] = 0.0
+        weights["Carrying"] = 0.0
+        weights["Near Food"] = 0.0
+        weights["Near Enemy"] = 0.0
+        self.setWeights(weights)
