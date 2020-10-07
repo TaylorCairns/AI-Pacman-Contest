@@ -122,7 +122,7 @@ class BoardEdge:
 
     def isDeadEnd(self):
         deadEnd = False
-        for end in ends:
+        for end in self.ends:
             if end.isDeadEnd():
                 deadEnd = True
         return deadEnd
@@ -131,11 +131,11 @@ class BoardEdge:
         positions = []
         index = self.positions.index(position)
         if index == 0:
-            positions.append(self.end[0].position)
+            positions.append(self.ends[0].position)
         else:
             positions.append(self.positions[index - 1])
         if index == len(self.positions) - 1:
-            positions.append(self.end[1].position)
+            positions.append(self.ends[1].position)
         else:
             positions.append(self.positions[index + 1])
         return positions
@@ -205,7 +205,7 @@ class BoardNode:
         return food
 
     def isDeadEnd(self):
-        return False if len(exits) > 1 else True
+        return False if len(self.exits) > 1 else True
 
     def oneAway(self, position):
         positions = []
@@ -594,8 +594,8 @@ class Hivemind:
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
-        pos = state.getAgentPosition(len(self.history) % 2)
-        position = newPosition(pos[0], pos[1], action)
+        pos = state.getAgentPosition((len(self.history) - 1) % 2)
+        position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
         if "Bias" in iterable:
@@ -632,7 +632,7 @@ class Hivemind:
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position)
         if "Near Enemy" in iterable:
-            features["Near Enemy"] = self.oneAwayFeature(position)
+            features["Near Enemy"] = self.enemiesOneAway(position)
         return features
 
     """
@@ -747,9 +747,9 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'GreedyHivemindAgent', second = 'DefensiveHivemindAgent'):
+               first = 'AllFeaturesAgent', second = 'AllFeaturesAgent', numTraining=0, **kwargs):
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
-  return [eval(first)(firstIndex, hivemind), eval(second)(secondIndex, hivemind)]
+  return [eval(first)(firstIndex, hivemind, **kwargs), eval(second)(secondIndex, hivemind, **kwargs)]
 
 ##########
 # Agents #
@@ -908,7 +908,7 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0, **args):
+    def __init__(self, index, hivemind, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0, **kwargs):
         # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
         self.index = index
         self.red = None
@@ -932,11 +932,11 @@ class ApproximateQAgent(Agent):
     # ApproximateQAgent functions copied from p3-reinforcement-s3689650
     def registerInitialState(self, state):
         self.startEpisode()
-        self.red = gameState.isOnRedTeam(self.index)
+        self.red = state.isOnRedTeam(self.index)
         import __main__
         if '_display' in dir(__main__):
           self.display = __main__._display
-        self.hivemind.registerInitialState(self.index, gameState)
+        self.hivemind.registerInitialState(self.index, state)
 
     def observationFunction(self, gameState):
         state = gameState.makeObservation(self.index)
@@ -947,11 +947,11 @@ class ApproximateQAgent(Agent):
         return state
 
     def getQValue(self, state, action):
-        return self.weights * self.hivemind.getFeatures(state, action)
+        return self.weights * self.hivemind.getFeatures(state, action, self.weights)
 
     def computeValueFromQValues(self, state):
         value = 0.0
-        actions = self.getLegalActions(state)
+        actions = state.getLegalActions(self.index)
         if len(actions) > 0:
             value = max([self.getQValue(state, action) for action in actions])
         return value
@@ -959,7 +959,7 @@ class ApproximateQAgent(Agent):
     def computeActionFromQValues(self, state):
         bestActions = []
         bestValue = self.computeValueFromQValues(state)
-        actions = self.getLegalActions(state)
+        actions = state.getLegalActions(self.index)
         for action in actions:
             if self.getQValue(state, action) == bestValue:
                 bestActions.append(action)
@@ -979,22 +979,16 @@ class ApproximateQAgent(Agent):
 
     def getAction(self, state):
         self.observationHistory.append(state)
-        myState = state.getAgentState(self.index)
-        myPos = myState.getPosition()
-        if myPos != nearestPoint(myPos):
-            # We're halfway from one position to the next
-            return state.getLegalActions(self.index)[0]
-        else:
-            legalActions = state.getLegalActions(self.index)
-            action = None
-            if len(legalActions) > 0:
-                if util.flipCoin(self.explorationChance):
-                    action = random.choice(legalActions)
-                else:
-                    action = self.computeActionFromQValues(state)
-            self.lastState = state
-            self.lastAction = action
-            return action
+        legalActions = state.getLegalActions(self.index)
+        action = None
+        if len(legalActions) > 0:
+            if util.flipCoin(self.explorationChance):
+                action = random.choice(legalActions)
+            else:
+                action = self.computeActionFromQValues(state)
+        self.lastState = state
+        self.lastAction = action
+        return action
 
     ### Episode Related Functions copied from p3-reinforcement
     def startEpisode(self):
