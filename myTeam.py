@@ -16,6 +16,7 @@ from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
 import game
+import distanceCalculator
 
 class ModRange:
     """A generator class for getting ranges that wrap around modulo boundaries"""
@@ -449,7 +450,7 @@ class Hivemind:
         self.policies = None
         self.distancer = None
 
-    def registerInitialState(self, agentIndex, gameState, distancer):
+    def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
             self.board = BoardGraph(gameState.getWalls())
             beliefs = {}
@@ -466,7 +467,8 @@ class Hivemind:
                 self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
             self.policies = ValueIterations(foodGrid, beliefs, self)
-            self.distancer = distancer
+            self.distancer = distanceCalculator.Distancer(gameState.data.layout)
+            self.distancer.getMazeDistances()
 
     def registerNewState(self, agentIndex, gameState):
         beliefs = {}
@@ -792,7 +794,7 @@ class GreedyHivemindAgent(CaptureAgent):
 
   def registerInitialState(self, gameState):
     CaptureAgent.registerInitialState(self, gameState)
-    self.hivemind.registerInitialState(self.index, gameState, self.distancer)
+    self.hivemind.registerInitialState(self.index, gameState)
 
   def findBestActions(self, gameState, policy):
     board = self.hivemind.board
@@ -869,7 +871,7 @@ class DefensiveHivemindAgent(CaptureAgent):
 
   def registerInitialState(self, gameState):
     CaptureAgent.registerInitialState(self, gameState)
-    self.hivemind.registerInitialState(self.index, gameState, self.distancer)
+    self.hivemind.registerInitialState(self.index, gameState)
 
   def findBestActions(self, gameState, policy, reciprocal=False):
     board = self.hivemind.board
