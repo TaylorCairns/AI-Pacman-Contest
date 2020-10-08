@@ -940,6 +940,7 @@ class ApproximateQAgent(Agent):
 
     def observationFunction(self, gameState):
         state = gameState.makeObservation(self.index)
+        self.hivemind.registerNewState(self.index, state)
         if not self.lastState is None:
             reward = state.getScore() - self.lastState.getScore()
             self.episodeRewards += reward
@@ -1023,8 +1024,10 @@ class ApproximateQAgent(Agent):
         "Called at the end of each game."
         self.observationHistory = []
         # call the super-class final method
+        self.hivemind.registerNewState(self.index, state)
         deltaReward = state.getScore() - self.lastState.getScore()
-        self.observeTransition(self.lastState, self.lastAction, state, deltaReward)
+        self.episodeRewards += deltaReward
+        self.update(self.lastState, self.lastAction, state, deltaReward)
         self.stopEpisode()
 
         # Make sure we have this var
