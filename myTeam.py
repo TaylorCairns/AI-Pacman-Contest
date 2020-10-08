@@ -449,6 +449,7 @@ class Hivemind:
         self.history = []
         self.policies = None
         self.distancer = None
+        self.turnOffset = 0
 
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
@@ -469,8 +470,18 @@ class Hivemind:
             self.policies = ValueIterations(foodGrid, beliefs, self)
             self.distancer = distanceCalculator.Distancer(gameState.data.layout)
             self.distancer.getMazeDistances()
+        elif len(self.history) > 1:
+            self.history = []
+            beliefs = {}
+            for agentIndex in range(0, gameState.getNumAgents()):
+                belief = util.Counter()
+                belief[gameState.getInitialAgentPosition(agentIndex)] = 1.0
+                beliefs[agentIndex] = belief
+            self.history.append((gameState, beliefs))
 
     def registerNewState(self, agentIndex, gameState):
+        if len(self.history) == 1 and agentIndex == 2:
+            self.turnOffset = 1
         beliefs = {}
         # Update belief about position of last agent on team to act
         lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
@@ -582,6 +593,9 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
+    def getCurrentAgent(self):
+        return self.teamIndexes[(len(self.history) + self.turnOffset) % 2]
+
     def getEnemyFood(self):
         foodGrid = None
         if self.isRed:
@@ -594,7 +608,7 @@ class Hivemind:
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
-        pos = state.getAgentPosition(self.teamIndexes[len(self.history) % 2])
+        pos = state.getAgentPosition(self.getCurrentAgent())
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
@@ -648,7 +662,7 @@ class Hivemind:
         return 1 if self.board.positions[position].isRed() == self.isRed else -1
 
     def scaredFeature(self):
-        index = self.teamIndexes[len(self.history) % 2]
+        index = self.getCurrentAgent()
         timer = self.history[-1][0].getAgentState(index).scaredTimer
         return 1 if timer > 1 else 0
 
@@ -713,7 +727,7 @@ class Hivemind:
         gameState = self.history[-1][0]
         score = gameState.data.score
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
-            score += gameState.getAgentState(self.teamIndexes[len(self.history) % 2]).numCarrying
+            score += gameState.getAgentState(self.getCurrentAgent()).numCarrying
         if not self.isRed:
             score *= -1
         initialFood = self.history[0][0].getRedFood().count()
@@ -726,7 +740,7 @@ class Hivemind:
         boardFeature = self.board.positions[position]
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             return 0
-        index = self.teamIndexes[len(self.history) % 2]
+        index = self.getCurrentAgent()
         carried = self.history[-1][0].getAgentState(index).numCarrying
         return carried + self.eatsFoodFeature(position)
 
