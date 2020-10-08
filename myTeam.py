@@ -951,10 +951,12 @@ class ApproximateQAgent(Agent):
         if '_display' in dir(__main__):
           self.display = __main__._display
         self.hivemind.registerInitialState(self.index, state)
+        self.observationHistory.append(state)
 
     def observationFunction(self, gameState):
         state = gameState.makeObservation(self.index)
         self.hivemind.registerNewState(self.index, state)
+        self.observationHistory.append(state)
         if not self.lastState is None:
             reward = state.getScore() - self.lastState.getScore()
             self.episodeRewards += reward
@@ -993,7 +995,6 @@ class ApproximateQAgent(Agent):
             self.weights[feat] = self.weights[feat] + self.learningRate * difference * features[feat]
 
     def getAction(self, state):
-        self.observationHistory.append(state)
         legalActions = state.getLegalActions(self.index)
         action = None
         if len(legalActions) > 0:
@@ -1051,7 +1052,7 @@ class ApproximateQAgent(Agent):
             self.lastWindowAccumRewards = 0.0
         self.lastWindowAccumRewards += state.getScore()
 
-        NUM_EPS_UPDATE = 100
+        NUM_EPS_UPDATE = 10
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
             print('Reinforcement Learning Status:')
             windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
