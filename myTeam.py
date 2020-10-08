@@ -959,6 +959,8 @@ class ApproximateQAgent(Agent):
         self.observationHistory.append(state)
         if not self.lastState is None:
             reward = state.getScore() - self.lastState.getScore()
+            if not self.hivemind.isRed:
+                reward *= -1
             self.episodeRewards += reward
             self.update(self.lastState, self.lastAction, state, reward)
         return state
@@ -1041,6 +1043,8 @@ class ApproximateQAgent(Agent):
         # call the super-class final method
         self.hivemind.registerNewState(self.index, state)
         deltaReward = state.getScore() - self.lastState.getScore()
+        if not self.hivemind.isRed:
+            deltaReward *= -1
         self.episodeRewards += deltaReward
         self.update(self.lastState, self.lastAction, state, deltaReward)
         self.stopEpisode()
@@ -1050,7 +1054,11 @@ class ApproximateQAgent(Agent):
             self.episodeStartTime = time.time()
         if not 'lastWindowAccumRewards' in self.__dict__:
             self.lastWindowAccumRewards = 0.0
+        score = state.getScore()
+        if not self.hivemind.isRed:
+            score *= -1
         self.lastWindowAccumRewards += state.getScore()
+
 
         NUM_EPS_UPDATE = 10
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
