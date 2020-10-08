@@ -449,7 +449,6 @@ class Hivemind:
         self.history = []
         self.policies = None
         self.distancer = None
-        self.turnOffset = 0
 
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
@@ -480,8 +479,6 @@ class Hivemind:
             self.history.append((gameState, beliefs))
 
     def registerNewState(self, agentIndex, gameState):
-        if len(self.history) == 1 and agentIndex == 2:
-            self.turnOffset = 1
         beliefs = {}
         # Update belief about position of last agent on team to act
         lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
@@ -593,9 +590,6 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-    def getCurrentAgent(self):
-        return self.teamIndexes[(len(self.history) + self.turnOffset) % 2]
-
     def getEnemyFood(self):
         foodGrid = None
         if self.isRed:
@@ -604,11 +598,11 @@ class Hivemind:
             foodGrid = self.history[-1][0].getRedFood()
         return foodGrid
 
-    def getFeatures(self, state, action, iterable):
+    def getFeatures(self, state, action, index, iterable):
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
-        pos = state.getAgentPosition(self.getCurrentAgent())
+        pos = state.getAgentPosition(index)
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
@@ -621,7 +615,7 @@ class Hivemind:
         if "Home Side" in iterable:
             features["Home Side"] = self.homeSideFeature(position)
         if "Scared" in iterable:
-            features["Scared"] = self.scaredFeature()
+            features["Scared"] = self.scaredFeature(index)
         if "Grab Food" in iterable:
             features["Grab Food"] = self.eatsFoodFeature(position)
         if "Capsule" in iterable:
@@ -638,11 +632,11 @@ class Hivemind:
             features["Enemy Dist"] = 1 / (min(distances) + 1)
         # Misc Features
         if "Score" in iterable:
-            features["Score"] = self.scoreFeature(position)
+            features["Score"] = self.scoreFeature(index, position)
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature(position)
+            features["Carrying"] = self.foodCarriedFeature(index, position)
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position)
         if "Near Enemy" in iterable:
@@ -661,8 +655,7 @@ class Hivemind:
     def homeSideFeature(self, position):
         return 1 if self.board.positions[position].isRed() == self.isRed else -1
 
-    def scaredFeature(self):
-        index = self.getCurrentAgent()
+    def scaredFeature(self, index):
         timer = self.history[-1][0].getAgentState(index).scaredTimer
         return 1 if timer > 1 else 0
 
@@ -722,12 +715,12 @@ class Hivemind:
             distance += self.distancer.getDistance(position, pos) * belief[pos]
         return distance
 
-    def scoreFeature(self, position):
+    def scoreFeature(self, index, position):
         boardFeature = self.board.positions[position]
         gameState = self.history[-1][0]
         score = gameState.data.score
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
-            score += gameState.getAgentState(self.getCurrentAgent()).numCarrying
+            score += gameState.getAgentState(index).numCarrying
         if not self.isRed:
             score *= -1
         initialFood = self.history[0][0].getRedFood().count()
@@ -736,11 +729,10 @@ class Hivemind:
     def turnsRemainingFeature(self):
         return 300 - (len(self.history) / 2)
 
-    def foodCarriedFeature(self, position):
+    def foodCarriedFeature(self, index, position):
         boardFeature = self.board.positions[position]
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             return 0
-        index = self.getCurrentAgent()
         carried = self.history[-1][0].getAgentState(index).numCarrying
         return carried + self.eatsFoodFeature(position)
 
@@ -761,7 +753,8 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'AllFeaturesAgent', second = 'AllFeaturesAgent', numTraining=0, **kwargs):
+               first = 'AllFeaturesAgent', second = 'AllFeaturesAgent', **kwargs):
+  print(f"create Team {kwargs}")
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs), eval(second)(secondIndex, hivemind, **kwargs)]
 
@@ -922,7 +915,7 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, index, hivemind, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0, **kwargs):
+    def __init__(self, index, hivemind, epsilon=0.05, gamma=0.8, alpha=0.2, **kwargs):
         # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
         self.index = index
         self.red = None
@@ -934,7 +927,10 @@ class ApproximateQAgent(Agent):
         self.learningRate = float(alpha)
         self.discount = float(gamma)
         # Training reporting variables
-        self.numTraining = int(numTraining)
+        if 'numTraining' in kwargs:
+            self.numTraining = int(kwargs['numTraining'])
+        else:
+            self.numTraining = 0
         self.episodesSoFar = 0
         self.accumTrainRewards = 0.0
         self.accumTestRewards = 0.0
@@ -966,7 +962,7 @@ class ApproximateQAgent(Agent):
         return state
 
     def getQValue(self, state, action):
-        return self.weights * self.hivemind.getFeatures(state, action, self.weights)
+        return self.weights * self.hivemind.getFeatures(state, action, self.index, self.weights)
 
     def computeValueFromQValues(self, state):
         value = 0.0
@@ -985,14 +981,14 @@ class ApproximateQAgent(Agent):
         bestAction = None
         if len(bestActions) > 0:
             bestAction = random.choice(bestActions)
-        elif len(self.getLegalActions(state)) > 0:
-            bestAction = random.choice(self.getLegalActions(state))
+        elif len(actions) > 0:
+            bestAction = random.choice(actions)
         return bestAction
 
     def update(self, state, action, nextState, reward):
         oldValue = self.getQValue(state, action)
         difference = (reward + self.discount * self.computeValueFromQValues(nextState)) - oldValue
-        features = self.hivemind.getFeatures(state, action, self.weights)
+        features = self.hivemind.getFeatures(state, action, self.index, self.weights)
         for feat in features:
             self.weights[feat] = self.weights[feat] + self.learningRate * difference * features[feat]
 
@@ -1122,19 +1118,19 @@ class AllFeaturesAgent(ApproximateQAgent):
     def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         weights = util.Counter()
-        weights["Bias"] = 0.0
-        weights["On Edge"] = 0.0
-        weights["Dead End"] = 0.0
-        weights["Home Side"] = 0.0
-        weights["Scared"] = 0.0
-        weights["Grab Food"] = 0.0
-        weights["Capsule"] = 0.0
-        weights["Border"] = 0.0
-        weights["Food Dist"] = 0.0
-        weights["Enemy Dist"] = 0.0
-        weights["Score"] = 0.0
-        weights["Turns"] = 0.0
-        weights["Carrying"] = 0.0
-        weights["Near Food"] = 0.0
-        weights["Near Enemy"] = 0.0
+        weights["Bias"] = 1.0
+        weights["On Edge"] = 1.0
+        weights["Dead End"] = 1.0
+        weights["Home Side"] = 1.0
+        weights["Scared"] = 1.0
+        weights["Grab Food"] = 1.0
+        weights["Capsule"] = 1.0
+        weights["Border"] = 1.0
+        weights["Food Dist"] = 1.0
+        weights["Enemy Dist"] = 1.0
+        weights["Score"] = 1.0
+        weights["Turns"] = 1.0
+        weights["Carrying"] = 1.0
+        weights["Near Food"] = 1.0
+        weights["Near Enemy"] = 1.0
         self.setWeights(weights)
