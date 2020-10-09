@@ -590,8 +590,8 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-    def getLastGameState(self):
-        return self.history[-1][0]
+    def getPreviousGameState(self, index=1):
+        return self.history[-index][0]
 
     def getEnemyFood(self, gameState):
         foodGrid = None
@@ -831,7 +831,7 @@ class GreedyHivemindAgent(CaptureAgent):
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
-        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getLastGameState()))
+        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
         if gameState.getAgentState(self.index).numCarrying > 2 and not nearbyFood:
             returnPolicy = self.hivemind.policies.returnHome
             value, actions = self.findBestActions(gameState, returnPolicy)
@@ -903,7 +903,7 @@ class DefensiveHivemindAgent(CaptureAgent):
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getLastGameState()))
+    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
     value = 0
     actions = ['Stop']
     if gameState.getAgentState(self.index).numCarrying > 0 and not nearbyFood:
@@ -942,6 +942,18 @@ class ApproximateQAgent(Agent):
     def setWeights(self, weights):
         self.weights = weights
 
+    def rewardFunction(self, gameState):
+        reward = self.hivemind.getPreviousGameState(2).getScore() - self.lastState.getScore()
+        lastCarrying = float(self.lastState.getAgentState(self.index).numCarrying)
+        nowCarrying = float(gameState.getAgentState(self.index).numCarrying)
+        if nowCarrying == 0:
+            reward -= lastCarrying / 2
+        else:
+            diffCarrying = nowCarrying - lastCarrying
+            if diffCarrying > 0:
+                reward += diffCarrying / 2
+        return reward
+
     # ApproximateQAgent functions copied from p3-reinforcement-s3689650
     def registerInitialState(self, state):
         self.startEpisode()
@@ -957,7 +969,7 @@ class ApproximateQAgent(Agent):
         self.hivemind.registerNewState(self.index, state)
         self.observationHistory.append(state)
         if not self.lastState is None:
-            reward = state.getScore() - self.lastState.getScore()
+            reward = self.rewardFunction(gameState)
             if not self.hivemind.isRed:
                 reward *= -1
             self.episodeRewards += reward
