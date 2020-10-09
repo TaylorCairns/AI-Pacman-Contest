@@ -944,6 +944,8 @@ class ApproximateQAgent(Agent):
 
     def rewardFunction(self, gameState):
         reward = self.hivemind.getPreviousGameState(2).getScore() - self.lastState.getScore()
+        if not self.hivemind.isRed:
+            reward *= -1
         lastCarrying = float(self.lastState.getAgentState(self.index).numCarrying)
         nowCarrying = float(gameState.getAgentState(self.index).numCarrying)
         if nowCarrying == 0:
