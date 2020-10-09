@@ -625,14 +625,18 @@ class Hivemind:
             features["Capsule"] = self.eatsCapsuleFeature(position)
         # Distance Features
         if "Border" in iterable:
-            features["Border"] = 1 / (self.borderDistanceFeature(position) + 1)
+            features["Border"] = self.borderDistanceFeature(position)
         if "Food Dist" in iterable:
-            features["Food Dist"] = 1 / (self.foodDistanceFeature(position, state) + 1)
-        if "Enemy Dist" in iterable:
+            features["Food Dist"] = self.foodDistanceFeature(position, state)
+        if "Nearest Enemy Dist" in iterable:
             distances = []
             for enemy in self.enemyIndexes:
                 distances.append(self.enemyDistanceFeature(position, enemy))
-            features["Enemy Dist"] = 1 / (min(distances) + 1)
+            features["Nearest Enemy Dist"] = min(distances)
+        if "Enemy 0 Dist" in iterable:
+            features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0])
+        if "Enemy 1 Dist" in iterable:
+            features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1])
         # Misc Features
         if "Score" in iterable:
             features["Score"] = self.scoreFeature(index, position)
@@ -640,6 +644,8 @@ class Hivemind:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
             features["Carrying"] = self.foodCarriedFeature(index, position, state)
+        if "Returned" in iterable:
+            features["Returned"] = self.foodReturnedFeature(index, position, state)
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position, state)
         if "Near Enemy" in iterable:
@@ -664,7 +670,10 @@ class Hivemind:
 
     def eatsFoodFeature(self, position, state):
         x, y = position
-        return 1.0 if self.getEnemyFood(state)[x][y] else 0.0
+        if self.enemiesOneAway(position) == 0 and self.getEnemyFood(state)[x][y]:
+            return 1.0
+        else:
+            return 0.0
 
     def eatsCapsuleFeature(self, position):
         capsules = None
@@ -706,9 +715,10 @@ class Hivemind:
 
     def foodDistanceFeature(self, position, state):
         foodList = self.getEnemyFood(state).asList()
+        width, height = state.getWalls().width, state.getWalls().height
         distances = []
         for pos in foodList:
-            distances.append(self.distancer.getDistance(position, pos))
+            distances.append(self.distancer.getDistance(position, pos) / float(width * height))
         return min(distances) if len(distances) > 0 else 0.0
 
     def enemyDistanceFeature(self, position, enemyIndex):
@@ -738,6 +748,13 @@ class Hivemind:
             return 0
         carried = self.history[-1][0].getAgentState(index).numCarrying
         return float(carried + self.eatsFoodFeature(position, state))
+
+    def foodReturnedFeature(self, index, position, state):
+        returned = state.getAgentState(index).numReturned
+        boardFeature = self.board.positions[position]
+        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
+            returned += state.getAgentState(index).numCarrying
+        return float(returned)
 
     def nearbyFoodFeature(self, position, state):
         return 1.0 if self.board.positions[position].neighbouringFood(self.getEnemyFood(state)) else 0.0
@@ -943,18 +960,12 @@ class ApproximateQAgent(Agent):
         self.weights = weights
 
     def rewardFunction(self, gameState):
-        reward = self.hivemind.getPreviousGameState(2).getScore() - self.lastState.getScore()
-        if not self.hivemind.isRed:
-            reward *= -1
-        lastCarrying = float(self.lastState.getAgentState(self.index).numCarrying)
-        nowCarrying = float(gameState.getAgentState(self.index).numCarrying)
-        if nowCarrying == 0:
-            reward -= lastCarrying / 2
-        else:
-            diffCarrying = nowCarrying - lastCarrying
-            if diffCarrying > 0:
-                reward += diffCarrying / 2
-        return reward
+        carryDiff = float(gameState.getAgentState(self.index).numCarrying -
+            self.lastState.getAgentState(self.index).numCarrying)
+        returnDiff = float(gameState.getAgentState(self.index).numReturned -
+            self.lastState.getAgentState(self.index).numReturned)
+        reward = (returnDiff + carryDiff / 2.0) * 10.0
+        return reward if reward != 0.0 else -0.05
 
     # ApproximateQAgent functions copied from p3-reinforcement-s3689650
     def registerInitialState(self, state):
@@ -972,8 +983,6 @@ class ApproximateQAgent(Agent):
         self.observationHistory.append(state)
         if not self.lastState is None:
             reward = self.rewardFunction(gameState)
-            if not self.hivemind.isRed:
-                reward *= -1
             self.episodeRewards += reward
             self.update(self.lastState, self.lastAction, state, reward)
         return state
@@ -1055,9 +1064,9 @@ class ApproximateQAgent(Agent):
         self.observationHistory = []
         # call the super-class final method
         self.hivemind.registerNewState(self.index, state)
-        deltaReward = state.getScore() - self.lastState.getScore()
-        if not self.hivemind.isRed:
-            deltaReward *= -1
+        terminalScore = state.getScore() if self.hivemind.isRed else - state.getScore()
+        deltaReward = self.rewardFunction(state)
+        deltaReward -= state.getAgentState(self.index).numCarrying * 5.0
         self.episodeRewards += deltaReward
         self.update(self.lastState, self.lastAction, state, deltaReward)
         self.stopEpisode()
@@ -1067,10 +1076,7 @@ class ApproximateQAgent(Agent):
             self.episodeStartTime = time.time()
         if not 'lastWindowAccumRewards' in self.__dict__:
             self.lastWindowAccumRewards = 0.0
-        score = state.getScore()
-        if not self.hivemind.isRed:
-            score *= -1
-        self.lastWindowAccumRewards += state.getScore()
+        self.lastWindowAccumRewards += self.episodeRewards
 
 
         NUM_EPS_UPDATE = 10
@@ -1144,10 +1150,13 @@ class AllFeaturesAgent(ApproximateQAgent):
         weights["Capsule"] = 1.0
         weights["Border"] = 1.0
         weights["Food Dist"] = 1.0
-        weights["Enemy Dist"] = 1.0
         weights["Score"] = 1.0
         weights["Turns"] = 1.0
         weights["Carrying"] = 1.0
         weights["Near Food"] = 1.0
         weights["Near Enemy"] = 1.0
+        # weights["Nearest Enemy Dist"] = 1.0
+        # weights["Enemy 0 Dist"] = 1.0
+        # weights["Enemy 1 Dist"] = 1.0
+        weights["Returned"] = 1.0
         self.setWeights(weights)
