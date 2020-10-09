@@ -590,12 +590,15 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-    def getEnemyFood(self):
+    def getLastGameState(self):
+        return self.history[-1][0]
+
+    def getEnemyFood(self, gameState):
         foodGrid = None
         if self.isRed:
-            foodGrid = self.history[-1][0].getBlueFood()
+            foodGrid = gameState.getBlueFood()
         else:
-            foodGrid = self.history[-1][0].getRedFood()
+            foodGrid = gameState.getRedFood()
         return foodGrid
 
     def getFeatures(self, state, action, index, iterable):
@@ -617,14 +620,14 @@ class Hivemind:
         if "Scared" in iterable:
             features["Scared"] = self.scaredFeature(index)
         if "Grab Food" in iterable:
-            features["Grab Food"] = self.eatsFoodFeature(position)
+            features["Grab Food"] = self.eatsFoodFeature(position, state)
         if "Capsule" in iterable:
             features["Capsule"] = self.eatsCapsuleFeature(position)
         # Distance Features
         if "Border" in iterable:
             features["Border"] = 1 / (self.borderDistanceFeature(position) + 1)
         if "Food Dist" in iterable:
-            features["Food Dist"] = 1 / (self.foodDistanceFeature(position) + 1)
+            features["Food Dist"] = 1 / (self.foodDistanceFeature(position, state) + 1)
         if "Enemy Dist" in iterable:
             distances = []
             for enemy in self.enemyIndexes:
@@ -636,9 +639,9 @@ class Hivemind:
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature(index, position)
+            features["Carrying"] = self.foodCarriedFeature(index, position, state)
         if "Near Food" in iterable:
-            features["Near Food"] = self.nearbyFoodFeature(position)
+            features["Near Food"] = self.nearbyFoodFeature(position, state)
         if "Near Enemy" in iterable:
             features["Near Enemy"] = self.enemiesOneAway(position)
         return features
@@ -647,21 +650,21 @@ class Hivemind:
     Feature Extractors
     """
     def onEdgeFeature(self, position):
-        return 1 if not self.board.positions[position].isNode else 0
+        return 1.0 if not self.board.positions[position].isNode else 0.0
 
     def inDeadEndFeature(self, position):
-        return 1 if self.board.positions[position].isDeadEnd() else 0
+        return 1.0 if self.board.positions[position].isDeadEnd() else 0.0
 
     def homeSideFeature(self, position):
-        return 1 if self.board.positions[position].isRed() == self.isRed else -1
+        return 1.0 if self.board.positions[position].isRed() == self.isRed else -1.0
 
     def scaredFeature(self, index):
         timer = self.history[-1][0].getAgentState(index).scaredTimer
-        return 1 if timer > 1 else 0
+        return 1.0 if timer > 1 else 0.0
 
-    def eatsFoodFeature(self, position):
+    def eatsFoodFeature(self, position, state):
         x, y = position
-        return 1 if self.getEnemyFood()[x][y] else 0
+        return 1.0 if self.getEnemyFood(state)[x][y] else 0.0
 
     def eatsCapsuleFeature(self, position):
         capsules = None
@@ -669,7 +672,7 @@ class Hivemind:
             capsules = self.history[-1][0].getBlueCapsules()
         else:
             capsules = self.history[-1][0].getRedCapsules()
-        return 1 if position in capsules else 0
+        return 1.0 if position in capsules else 0.0
 
     def borderDistanceFeature(self, position):
         # Initialise search
@@ -701,12 +704,12 @@ class Hivemind:
                     hCost = int(abs(mid - successor[0].position[0]))
                     fringe.update(successor, successor[1] + hCost)
 
-    def foodDistanceFeature(self, position):
-        foodList = self.getEnemyFood().asList()
+    def foodDistanceFeature(self, position, state):
+        foodList = self.getEnemyFood(state).asList()
         distances = []
         for pos in foodList:
             distances.append(self.distancer.getDistance(position, pos))
-        return min(distances)
+        return min(distances) if len(distances) > 0 else 0.0
 
     def enemyDistanceFeature(self, position, enemyIndex):
         belief = self.history[-1][1][enemyIndex]
@@ -729,18 +732,18 @@ class Hivemind:
     def turnsRemainingFeature(self):
         return 300 - (len(self.history) / 2)
 
-    def foodCarriedFeature(self, index, position):
+    def foodCarriedFeature(self, index, position, state):
         boardFeature = self.board.positions[position]
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             return 0
         carried = self.history[-1][0].getAgentState(index).numCarrying
-        return carried + self.eatsFoodFeature(position)
+        return float(carried + self.eatsFoodFeature(position, state))
 
-    def nearbyFoodFeature(self, position):
-        return self.board.positions[position].neighbouringFood(self.getEnemyFood())
+    def nearbyFoodFeature(self, position, state):
+        return 1.0 if self.board.positions[position].neighbouringFood(self.getEnemyFood(state)) else 0.0
 
     def enemiesOneAway(self, position):
-        sumProb = 0
+        sumProb = 0.0
         positions = self.board.positions[position].oneAway(position)
         for agent in self.enemyIndexes:
             sumProb += self.history[-1][1][agent][position]
@@ -828,7 +831,7 @@ class GreedyHivemindAgent(CaptureAgent):
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
-        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood())
+        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getLastGameState()))
         if gameState.getAgentState(self.index).numCarrying > 2 and not nearbyFood:
             returnPolicy = self.hivemind.policies.returnHome
             value, actions = self.findBestActions(gameState, returnPolicy)
@@ -900,7 +903,7 @@ class DefensiveHivemindAgent(CaptureAgent):
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood())
+    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getLastGameState()))
     value = 0
     actions = ['Stop']
     if gameState.getAgentState(self.index).numCarrying > 0 and not nearbyFood:
@@ -990,7 +993,7 @@ class ApproximateQAgent(Agent):
         difference = (reward + self.discount * self.computeValueFromQValues(nextState)) - oldValue
         features = self.hivemind.getFeatures(state, action, self.index, self.weights)
         for feat in features:
-            self.weights[feat] = self.weights[feat] + self.learningRate * difference * features[feat]
+            self.weights[feat] += self.learningRate * difference * features[feat]
 
     def getAction(self, state):
         legalActions = state.getLegalActions(self.index)
