@@ -894,7 +894,7 @@ class GreedyHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class DefensiveHivemindAgent(CaptureAgent):
-  def __init__( self, index, hivemind , timeForComputing = .1):
+  def __init__( self, index, hivemind , timeForComputing = .1, **kwargs):
     self.index = index
     self.red = None
     self.distancer = None
@@ -953,7 +953,8 @@ class DefensiveHivemindAgent(CaptureAgent):
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
+    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(
+            self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
     value = 0
     actions = ['Stop']
     if gameState.getAgentState(self.index).numCarrying > 0 and not nearbyFood:
@@ -962,9 +963,9 @@ class DefensiveHivemindAgent(CaptureAgent):
     else:
         huntPolicy = self.hivemind.policies.huntValue
         value, actions = self.findBestActions(gameState, huntPolicy)
-        if gameState.getAgentState(self.index).scaredTimer > 0 or value == 0:
-            foodPolicy = self.hivemind.policies.foodValues
-            value, actions = self.findBestActions(gameState, foodPolicy)
+        # if gameState.getAgentState(self.index).scaredTimer > 0 or value == 0:
+        #     foodPolicy = self.hivemind.policies.foodValues
+        #     value, actions = self.findBestActions(gameState, foodPolicy)
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
@@ -988,15 +989,12 @@ class ApproximateQAgent(Agent):
         self.accumTrainRewards = 0.0
         self.accumTestRewards = 0.0
 
-    # Function for customizing Hivemind Q-Learning Agent
-    def setWeights(self, weights):
-        self.weights = weights
-
+    # Function for customizing Hivemind Q-Learning Agents
     def rewardFunction(self, gameState):
         carryDiff = float(gameState.getAgentState(self.index).numCarrying -
-            self.lastState.getAgentState(self.index).numCarrying)
+                self.lastState.getAgentState(self.index).numCarrying)
         returnDiff = float(gameState.getAgentState(self.index).numReturned -
-            self.lastState.getAgentState(self.index).numReturned)
+                self.lastState.getAgentState(self.index).numReturned)
         reward = (returnDiff + carryDiff / 2.0) * 10.0
         return reward if reward != 0.0 else -0.05
 
