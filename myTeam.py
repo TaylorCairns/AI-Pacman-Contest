@@ -1182,15 +1182,17 @@ class AllFeaturesAgent(ApproximateQAgent):
         weights["Capsule"] = 1.0
         weights["Border"] = 1.0
         weights["Food Dist"] = 1.0
+        weights["Trespass"] = 1.0
+        weights["Nearest Enemy Dist"] = 1.0
+        weights["Enemy 0 Dist"] = 1.0
+        weights["Enemy 1 Dist"] = 1.0
         weights["Score"] = 1.0
         weights["Turns"] = 1.0
         weights["Carrying"] = 1.0
+        weights["Returned"] = 1.0
         weights["Near Food"] = 1.0
         weights["Near Enemy"] = 1.0
-        # weights["Nearest Enemy Dist"] = 1.0
-        # weights["Enemy 0 Dist"] = 1.0
-        # weights["Enemy 1 Dist"] = 1.0
-        weights["Returned"] = 1.0
+        weights["Kill"] = 1.0
         self.setWeights(weights)
 
 class HunterAgent(ApproximateQAgent):
