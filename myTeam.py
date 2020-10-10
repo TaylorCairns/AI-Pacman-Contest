@@ -621,7 +621,7 @@ class Hivemind:
         if "Scared" in iterable:
             features["Scared"] = self.scaredFeature(index)
         if "Grab Food" in iterable:
-            features["Grab Food"] = self.eatsFoodFeature(position, state)
+            features["Grab Food"] = self.eatsFoodFeature(index,  position, state)
         if "Capsule" in iterable:
             features["Capsule"] = self.eatsCapsuleFeature(position)
         # Distance Features
@@ -679,9 +679,9 @@ class Hivemind:
         timer = self.history[-1][0].getAgentState(index).scaredTimer
         return 1.0 if timer > 1 else 0.0
 
-    def eatsFoodFeature(self, position, state):
+    def eatsFoodFeature(self, index,  position, state):
         x, y = position
-        if self.enemiesOneAway(position) == 0 and self.getEnemyFood(state)[x][y]:
+        if self.enemiesOneAway(index, position, state) == 0 and self.getEnemyFood(state)[x][y]:
             return 1.0
         else:
             return 0.0
@@ -726,10 +726,8 @@ class Hivemind:
 
     def foodDistanceFeature(self, position, state):
         foodList = self.getEnemyFood(state).asList()
-        width, height = state.getWalls().width, state.getWalls().height
         distances = []
         for pos in foodList:
-            distances.append(self.distancer.getDistance(position, pos) / float(width * height))
             distances.append(self.distancer.getDistance(position, pos))
         return min(distances) if len(distances) > 0 else 0.0
 
@@ -762,7 +760,7 @@ class Hivemind:
         return float(carried + self.eatsFoodFeature(position, state))
 
     def foodReturnedFeature(self, index, position, state):
-        returned = state.getAgentState(index).numReturned
+        returned = 0.0
         boardFeature = self.board.positions[position]
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             returned += state.getAgentState(index).numCarrying
@@ -806,7 +804,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'GreedyHivemindAgent', second = 'HunterAgent', **kwargs):
+               first = 'AttackAgent', second = 'HunterAgent', **kwargs):
   print(f"create Team {kwargs}")
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs),
