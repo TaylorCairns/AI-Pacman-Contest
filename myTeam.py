@@ -1233,5 +1233,5 @@ class AttackAgent(ApproximateQAgent):
                 self.lastState.getAgentState(self.index).numReturned)
         reward = (returnDiff + carryDiff / 2.0) * 10.0
         if isFinal:
-            reward -= state.getAgentState(self.index).numCarrying * 5.0
+            reward -= gameState.getAgentState(self.index).numCarrying * 5.0
         return reward if reward != 0.0 else -0.05
