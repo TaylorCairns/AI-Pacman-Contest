@@ -1202,9 +1202,9 @@ class HunterAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         weights = util.Counter()
-        weights["Trespass"] = -3.2180937068880735
-        weights["Near Enemy"] = 49.612649858234974
-        weights["Kill"] = 100.13878098751749
+        weights["Trespass"] = -43.52709827983609
+        weights["Near Enemy"] = 113.58509702452676
+        weights["Kill"] = 195.97367809099194
         self.weights = weights
 
     def rewardFunction(self, gameState, isFinal=False):
@@ -1228,12 +1228,12 @@ class AttackAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         weights = util.Counter()
-        weights["Near Enemy"] = 1.0
-        weights["Kill"] = 1.0
-        weights["Grab Food"] = 1.0
-        weights["Delivery"] = 1.0
-        weights["Food Dist"] = -1.0
-        weights["Trespass"] = -1.0
+        weights["Near Enemy"] = 42.88718091048829
+        weights["Kill"] = 38.7956831767021
+        weights["Grab Food"] = 5.71864804146864
+        weights["Delivery"] = 25.73787094094885
+        weights["Food Dist"] = -3.263353405110272
+        weights["Trespass"] = -0.6578892848291951
         self.weights = weights
 
     def rewardFunction(self, gameState, isFinal=False):
