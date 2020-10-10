@@ -605,6 +605,7 @@ class Hivemind:
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
+        distScaleFactor = float(state.getWalls().width * state.getWalls().height)
         pos = state.getAgentPosition(index)
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
@@ -625,18 +626,26 @@ class Hivemind:
             features["Capsule"] = self.eatsCapsuleFeature(position)
         # Distance Features
         if "Border" in iterable:
-            features["Border"] = self.borderDistanceFeature(position)
+            features["Border"] = self.borderDistanceFeature(position) / distScaleFactor
         if "Food Dist" in iterable:
-            features["Food Dist"] = self.foodDistanceFeature(position, state)
+            features["Food Dist"] = self.foodDistanceFeature(position, state) / distScaleFactor
+        if "Trespass" in iterable:
+            pacmen, dists = [], []
+            for enemy in self.enemyIndexes:
+                pacmen.append(state.getAgentState(enemy).isPacman)
+                dists.append(self.enemyDistanceFeature(position, enemy))
+            trespassers = [d for p, d in zip(pacmen, dists) if p == True]
+            trespass = min(trespassers if len(trespassers) != 0 else dists)
+            features["Trespass"] = trespass / distScaleFactor
         if "Nearest Enemy Dist" in iterable:
             distances = []
             for enemy in self.enemyIndexes:
                 distances.append(self.enemyDistanceFeature(position, enemy))
-            features["Nearest Enemy Dist"] = min(distances)
+            features["Nearest Enemy Dist"] = min(distances) / distScaleFactor
         if "Enemy 0 Dist" in iterable:
-            features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0])
+            features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0]) / distScaleFactor
         if "Enemy 1 Dist" in iterable:
-            features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1])
+            features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1]) / distScaleFactor
         # Misc Features
         if "Score" in iterable:
             features["Score"] = self.scoreFeature(index, position)
@@ -649,7 +658,9 @@ class Hivemind:
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position, state)
         if "Near Enemy" in iterable:
-            features["Near Enemy"] = self.enemiesOneAway(position)
+            features["Near Enemy"] = self.enemiesOneAway(index, position, state)
+        if "Kill" in iterable:
+            features["Kill"] = self.kill(index, position, state)
         return features
 
     """
@@ -719,6 +730,7 @@ class Hivemind:
         distances = []
         for pos in foodList:
             distances.append(self.distancer.getDistance(position, pos) / float(width * height))
+            distances.append(self.distancer.getDistance(position, pos))
         return min(distances) if len(distances) > 0 else 0.0
 
     def enemyDistanceFeature(self, position, enemyIndex):
@@ -759,14 +771,35 @@ class Hivemind:
     def nearbyFoodFeature(self, position, state):
         return 1.0 if self.board.positions[position].neighbouringFood(self.getEnemyFood(state)) else 0.0
 
-    def enemiesOneAway(self, position):
-        sumProb = 0.0
+    def enemiesOneAway(self, index, position, state):
+        numEnemies = 0.0
+        agentState = state.getAgentState(index)
         positions = self.board.positions[position].oneAway(position)
-        for agent in self.enemyIndexes:
-            sumProb += self.history[-1][1][agent][position]
+        for enemy in self.enemyIndexes:
+            enemyState = state.getAgentState(enemy)
             for pos in positions:
-                sumProb += self.history[-1][1][agent][pos]
-        return sumProb
+                if enemyState.getPosition() == pos:
+                    if ((enemyState.isPacman and agentState.scaredTimer < 1) or
+                            (self.board.positions[pos].isRed() != self.isRed
+                            and enemyState.scaredTimer > 0)):
+                        numEnemies += 1.0
+                    else:
+                        numEnemies -= 1.0
+        return numEnemies
+
+    def kill(self, index, position, state):
+        killValue = 0.0
+        agentState = state.getAgentState(index)
+        for enemy in self.enemyIndexes:
+            enemyState = state.getAgentState(enemy)
+            if enemyState.getPosition() == position:
+                if ((enemyState.isPacman and agentState.scaredTimer < 1) or
+                        (self.board.positions[position].isRed() != self.isRed
+                        and enemyState.scaredTimer > 0)):
+                    killValue += 1.0
+                else:
+                    killValue -= 1.0
+        return killValue
 
 #################
 # Team creation #
@@ -776,7 +809,8 @@ def createTeam(firstIndex, secondIndex, isRed,
                first = 'AllFeaturesAgent', second = 'AllFeaturesAgent', **kwargs):
   print(f"create Team {kwargs}")
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
-  return [eval(first)(firstIndex, hivemind, **kwargs), eval(second)(secondIndex, hivemind, **kwargs)]
+  return [eval(first)(firstIndex, hivemind, **kwargs),
+        eval(second)(secondIndex, hivemind, **kwargs)]
 
 ##########
 # Agents #
@@ -991,11 +1025,11 @@ class ApproximateQAgent(Agent):
         return self.weights * self.hivemind.getFeatures(state, action, self.index, self.weights)
 
     def computeValueFromQValues(self, state):
-        value = 0.0
+        value = float("-inf")
         actions = state.getLegalActions(self.index)
         if len(actions) > 0:
             value = max([self.getQValue(state, action) for action in actions])
-        return value
+        return value if value != float("-inf") else 0.0
 
     def computeActionFromQValues(self, state):
         bestActions = []
@@ -1013,7 +1047,8 @@ class ApproximateQAgent(Agent):
 
     def update(self, state, action, nextState, reward):
         oldValue = self.getQValue(state, action)
-        difference = (reward + self.discount * self.computeValueFromQValues(nextState)) - oldValue
+        nextValue = self.computeValueFromQValues(nextState)
+        difference = (reward + self.discount * nextValue) - oldValue
         features = self.hivemind.getFeatures(state, action, self.index, self.weights)
         for feat in features:
             self.weights[feat] += self.learningRate * difference * features[feat]
@@ -1160,3 +1195,29 @@ class AllFeaturesAgent(ApproximateQAgent):
         # weights["Enemy 1 Dist"] = 1.0
         weights["Returned"] = 1.0
         self.setWeights(weights)
+
+class HunterAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        weights = util.Counter()
+        weights["Trespass"] = -0.5
+        weights["Near Enemy"] = 0.5
+        weights["Kill"] = 1.0
+        self.setWeights(weights)
+
+    def rewardFunction(self, gameState):
+        scoreChange = gameState.getScore() - self.lastState.getScore()
+        if not self.hivemind.isRed:
+            scoreChange *= -1.0
+        reward = min(0.0, scoreChange) * 100.0
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y,
+                self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if gameState.getAgentPosition(self.index) != lastPos:
+            reward -= 100.0
+        elif lastPos in lastEnemyPos:
+            reward += 100.0
+        return reward if reward != 0.0 else 1.0
