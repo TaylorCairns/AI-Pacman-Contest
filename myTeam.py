@@ -606,6 +606,8 @@ class Hivemind:
         Takes the future position to get features for and a iterable of the features you want.
         """
         distScaleFactor = float(state.getWalls().width * state.getWalls().height)
+        foodScaleFactor = self.history[0][0].getRedFood().count()
+        enemiesScaleFactor = len(self.enemyIndexes)
         pos = state.getAgentPosition(index)
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
@@ -648,19 +650,19 @@ class Hivemind:
             features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1]) / distScaleFactor
         # Misc Features
         if "Score" in iterable:
-            features["Score"] = self.scoreFeature(index, position)
+            features["Score"] = self.scoreFeature(index, position) / foodScaleFactor
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature(index, position, state)
+            features["Carrying"] = self.foodCarriedFeature(index, position, state) / foodScaleFactor
         if "Returned" in iterable:
-            features["Returned"] = self.foodReturnedFeature(index, position, state)
+            features["Returned"] = self.foodReturnedFeature(index, position, state) / foodScaleFactor
         if "Near Food" in iterable:
-            features["Near Food"] = self.nearbyFoodFeature(position, state)
+            features["Near Food"] = self.nearbyFoodFeature(position, state) / foodScaleFactor
         if "Near Enemy" in iterable:
-            features["Near Enemy"] = self.enemiesOneAway(index, position, state)
+            features["Near Enemy"] = self.enemiesOneAway(index, position, state) / enemiesScaleFactor
         if "Kill" in iterable:
-            features["Kill"] = self.kill(index, position, state)
+            features["Kill"] = self.kill(index, position, state) / enemiesScaleFactor
         return features
 
     """
@@ -746,8 +748,7 @@ class Hivemind:
             score += gameState.getAgentState(index).numCarrying
         if not self.isRed:
             score *= -1
-        initialFood = self.history[0][0].getRedFood().count()
-        return score / initialFood
+        return score
 
     def turnsRemainingFeature(self):
         return 300 - (len(self.history) / 2)
@@ -1213,7 +1214,6 @@ class HunterAgent(ApproximateQAgent):
         elif lastPos in lastEnemyPos:
             reward += 100.0
         return reward if reward != 0.0 else 1.0
-
 
 class AttackAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
