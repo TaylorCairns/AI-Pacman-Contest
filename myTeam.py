@@ -991,12 +991,7 @@ class ApproximateQAgent(Agent):
 
     # Function for customizing Hivemind Q-Learning Agents
     def rewardFunction(self, gameState):
-        carryDiff = float(gameState.getAgentState(self.index).numCarrying -
-                self.lastState.getAgentState(self.index).numCarrying)
-        returnDiff = float(gameState.getAgentState(self.index).numReturned -
-                self.lastState.getAgentState(self.index).numReturned)
-        reward = (returnDiff + carryDiff / 2.0) * 10.0
-        return reward if reward != 0.0 else -0.05
+        util.raiseNotDefined
 
     # ApproximateQAgent functions copied from p3-reinforcement-s3689650
     def registerInitialState(self, state):
@@ -1193,7 +1188,7 @@ class AllFeaturesAgent(ApproximateQAgent):
         weights["Near Food"] = 1.0
         weights["Near Enemy"] = 1.0
         weights["Kill"] = 1.0
-        self.setWeights(weights)
+        self.weights = weights
 
 class HunterAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
@@ -1202,7 +1197,7 @@ class HunterAgent(ApproximateQAgent):
         weights["Trespass"] = -3.2180937068880735
         weights["Near Enemy"] = 49.612649858234974
         weights["Kill"] = 100.13878098751749
-        self.setWeights(weights)
+        self.weights = weights
 
     def rewardFunction(self, gameState):
         scoreChange = gameState.getScore() - self.lastState.getScore()
@@ -1220,3 +1215,23 @@ class HunterAgent(ApproximateQAgent):
         elif lastPos in lastEnemyPos:
             reward += 100.0
         return reward if reward != 0.0 else 1.0
+
+
+class AttackAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        weights = util.Counter()
+        weights["Near Enemy"] = 1.0
+        weights["Kill"] = 1.0
+        weights["Grab Food"] = 1.0
+        weights["Returned"] = 1.0
+        weights["Food Dist"] = 1.0
+        self.weights = weights
+
+    def rewardFunction(self, gameState):
+        carryDiff = float(gameState.getAgentState(self.index).numCarrying -
+                self.lastState.getAgentState(self.index).numCarrying)
+        returnDiff = float(gameState.getAgentState(self.index).numReturned -
+                self.lastState.getAgentState(self.index).numReturned)
+        reward = (returnDiff + carryDiff / 2.0) * 10.0
+        return reward if reward != 0.0 else -0.05
