@@ -1113,7 +1113,7 @@ class ApproximateQAgent(Agent):
         self.lastWindowAccumRewards += self.episodeRewards
 
 
-        NUM_EPS_UPDATE = 5
+        NUM_EPS_UPDATE = 1
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
             print('Reinforcement Learning Status:')
             windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
@@ -1233,8 +1233,7 @@ class AttackAgent(ApproximateQAgent):
         weights["Grab Food"] = 1.0
         weights["Delivery"] = 1.0
         weights["Food Dist"] = -1.0
-        weights["Return"] = -1.0
-        weights["Nearest Enemy Dist"] = 1.0
+        weights["Trespass"] = -1.0
         self.weights = weights
 
     def rewardFunction(self, gameState, isFinal=False):
@@ -1243,6 +1242,16 @@ class AttackAgent(ApproximateQAgent):
         returnDiff = float(gameState.getAgentState(self.index).numReturned -
                 self.lastState.getAgentState(self.index).numReturned)
         reward = (returnDiff + carryDiff / 2.0) * 10.0
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y,
+                self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if gameState.getAgentPosition(self.index) != lastPos:
+            reward -= 5.0
+        elif lastPos in lastEnemyPos:
+            reward += 5.0
         if isFinal:
             reward -= gameState.getAgentState(self.index).numCarrying * 5.0
         return reward if reward != 0.0 else -0.05
