@@ -806,7 +806,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'AllFeaturesAgent', second = 'AllFeaturesAgent', **kwargs):
+               first = 'GreedyHivemindAgent', second = 'HunterAgent', **kwargs):
   print(f"create Team {kwargs}")
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs),
@@ -818,7 +818,7 @@ def createTeam(firstIndex, secondIndex, isRed,
 
 class GreedyHivemindAgent(CaptureAgent):
 
-  def __init__( self, index, hivemind , timeForComputing = .1):
+  def __init__( self, index, hivemind , timeForComputing = .1, **kwargs):
     self.index = index
     self.red = None
     self.distancer = None
@@ -882,14 +882,15 @@ class GreedyHivemindAgent(CaptureAgent):
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
-        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
+        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(
+                self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
         if gameState.getAgentState(self.index).numCarrying > 2 and not nearbyFood:
             returnPolicy = self.hivemind.policies.returnHome
             value, actions = self.findBestActions(gameState, returnPolicy)
         else:
-            huntPolicy = self.hivemind.policies.huntValue
-            value, actions = self.findBestActions(gameState, huntPolicy)
-            if value == 0:
+            # huntPolicy = self.hivemind.policies.huntValue
+            # value, actions = self.findBestActions(gameState, huntPolicy)
+            # if value == 0:
                 foodPolicy = self.hivemind.policies.foodValues
                 value, actions = self.findBestActions(gameState, foodPolicy)
     return random.choice(actions)
@@ -1114,14 +1115,14 @@ class ApproximateQAgent(Agent):
         self.lastWindowAccumRewards += self.episodeRewards
 
 
-        NUM_EPS_UPDATE = 10
+        NUM_EPS_UPDATE = 5
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
             print('Reinforcement Learning Status:')
             windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
             if self.episodesSoFar <= self.numTraining:
                 trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
                 print('\tCompleted %d out of %d training episodes' % (
-                       self.episodesSoFar,self.numTraining))
+                        self.episodesSoFar,self.numTraining))
                 print('\tAverage Rewards over all training: %.2f' % (
                         trainAvg))
             else:
@@ -1200,9 +1201,9 @@ class HunterAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         weights = util.Counter()
-        weights["Trespass"] = -0.5
-        weights["Near Enemy"] = 0.5
-        weights["Kill"] = 1.0
+        weights["Trespass"] = -3.2180937068880735
+        weights["Near Enemy"] = 49.612649858234974
+        weights["Kill"] = 100.13878098751749
         self.setWeights(weights)
 
     def rewardFunction(self, gameState):
