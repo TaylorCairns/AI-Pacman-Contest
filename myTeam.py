@@ -978,7 +978,7 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, index, hivemind, epsilon=0.05, gamma=0.8, alpha=0.2, **kwargs):
+    def __init__(self, index, hivemind, epsilon=0.05, gamma=0.9, alpha=0.2, **kwargs):
         # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
         self.index = index
         self.red = None
@@ -1120,15 +1120,15 @@ class ApproximateQAgent(Agent):
             if self.episodesSoFar <= self.numTraining:
                 trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
                 # print('\tCompleted %d out of %d training episodes' % (
-                        self.episodesSoFar,self.numTraining))
+                        # self.episodesSoFar,self.numTraining))
                 # print('\tAverage Rewards over all training: %.2f' % (
-                        trainAvg))
+                        # trainAvg))
             else:
                 testAvg = float(self.accumTestRewards) / (self.episodesSoFar - self.numTraining)
                 # print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
                 # print('\tAverage Rewards over testing: %.2f' % testAvg)
             # print('\tAverage Rewards for last %d episodes: %.2f'  % (
-                    NUM_EPS_UPDATE,windowAvg))
+                    # NUM_EPS_UPDATE,windowAvg))
             # print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
             self.lastWindowAccumRewards = 0.0
             self.episodeStartTime = time.time()
@@ -1225,7 +1225,7 @@ class HunterAgent(ApproximateQAgent):
         return reward if reward != 0.0 else 1.0
 
 class AttackAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
+    def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         weights = util.Counter()
         weights["Near Enemy"] = 42.88718091048829
