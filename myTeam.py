@@ -990,7 +990,7 @@ class ApproximateQAgent(Agent):
         self.accumTestRewards = 0.0
 
     # Function for customizing Hivemind Q-Learning Agents
-    def rewardFunction(self, gameState):
+    def rewardFunction(self, gameState, isFinal=False):
         util.raiseNotDefined
 
     # ApproximateQAgent functions copied from p3-reinforcement-s3689650
@@ -1091,9 +1091,7 @@ class ApproximateQAgent(Agent):
         self.observationHistory = []
         # call the super-class final method
         self.hivemind.registerNewState(self.index, state)
-        terminalScore = state.getScore() if self.hivemind.isRed else - state.getScore()
-        deltaReward = self.rewardFunction(state)
-        deltaReward -= state.getAgentState(self.index).numCarrying * 5.0
+        deltaReward = self.rewardFunction(state, True)
         self.episodeRewards += deltaReward
         self.update(self.lastState, self.lastAction, state, deltaReward)
         self.stopEpisode()
@@ -1199,7 +1197,7 @@ class HunterAgent(ApproximateQAgent):
         weights["Kill"] = 100.13878098751749
         self.weights = weights
 
-    def rewardFunction(self, gameState):
+    def rewardFunction(self, gameState, isFinal=False):
         scoreChange = gameState.getScore() - self.lastState.getScore()
         if not self.hivemind.isRed:
             scoreChange *= -1.0
@@ -1228,10 +1226,12 @@ class AttackAgent(ApproximateQAgent):
         weights["Food Dist"] = 1.0
         self.weights = weights
 
-    def rewardFunction(self, gameState):
+    def rewardFunction(self, gameState, isFinal=False):
         carryDiff = float(gameState.getAgentState(self.index).numCarrying -
                 self.lastState.getAgentState(self.index).numCarrying)
         returnDiff = float(gameState.getAgentState(self.index).numReturned -
                 self.lastState.getAgentState(self.index).numReturned)
         reward = (returnDiff + carryDiff / 2.0) * 10.0
+        if isFinal:
+            reward -= state.getAgentState(self.index).numCarrying * 5.0
         return reward if reward != 0.0 else -0.05
