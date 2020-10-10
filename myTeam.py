@@ -814,7 +814,7 @@ class Hivemind:
 
 def createTeam(firstIndex, secondIndex, isRed,
                first = 'AttackAgent', second = 'HunterAgent', **kwargs):
-  print(f"create Team {kwargs}")
+  # print(f"create Team {kwargs}")
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs),
         eval(second)(secondIndex, hivemind, **kwargs)]
@@ -1115,33 +1115,33 @@ class ApproximateQAgent(Agent):
 
         NUM_EPS_UPDATE = 1
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
-            print('Reinforcement Learning Status:')
+            # print('Reinforcement Learning Status:')
             windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
             if self.episodesSoFar <= self.numTraining:
                 trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
-                print('\tCompleted %d out of %d training episodes' % (
+                # print('\tCompleted %d out of %d training episodes' % (
                         self.episodesSoFar,self.numTraining))
-                print('\tAverage Rewards over all training: %.2f' % (
+                # print('\tAverage Rewards over all training: %.2f' % (
                         trainAvg))
             else:
                 testAvg = float(self.accumTestRewards) / (self.episodesSoFar - self.numTraining)
-                print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
-                print('\tAverage Rewards over testing: %.2f' % testAvg)
-            print('\tAverage Rewards for last %d episodes: %.2f'  % (
+                # print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
+                # print('\tAverage Rewards over testing: %.2f' % testAvg)
+            # print('\tAverage Rewards for last %d episodes: %.2f'  % (
                     NUM_EPS_UPDATE,windowAvg))
-            print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
+            # print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
             self.lastWindowAccumRewards = 0.0
             self.episodeStartTime = time.time()
 
         if self.episodesSoFar == self.numTraining:
             msg = 'Training Done (turning off epsilon and alpha)'
-            print('%s\n%s' % (msg,'-' * len(msg)))
+            # print('%s\n%s' % (msg,'-' * len(msg)))
 
         # did we finish training?
         if self.episodesSoFar == self.numTraining:
             # you might want to print your weights here for debugging
             "*** YOUR CODE HERE ***"
-            print(self.weights)
+            # print(self.weights)
 
     ### Debug functions copied from CaptureAgent
     def debugDraw(self, cells, color, clear=False):
