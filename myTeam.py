@@ -14,7 +14,7 @@
 
 from captureAgents import CaptureAgent
 import random, time, util
-from game import Directions
+from game import Directions, Agent
 import game
 import distanceCalculator
 
@@ -122,7 +122,7 @@ class BoardEdge:
 
     def isDeadEnd(self):
         deadEnd = False
-        for end in ends:
+        for end in self.ends:
             if end.isDeadEnd():
                 deadEnd = True
         return deadEnd
@@ -131,11 +131,11 @@ class BoardEdge:
         positions = []
         index = self.positions.index(position)
         if index == 0:
-            positions.append(self.end[0].position)
+            positions.append(self.ends[0].position)
         else:
             positions.append(self.positions[index - 1])
         if index == len(self.positions) - 1:
-            positions.append(self.end[1].position)
+            positions.append(self.ends[1].position)
         else:
             positions.append(self.positions[index + 1])
         return positions
@@ -205,7 +205,7 @@ class BoardNode:
         return food
 
     def isDeadEnd(self):
-        return False if len(exits) > 1 else True
+        return False if len(self.exits) > 1 else True
 
     def oneAway(self, position):
         positions = []
@@ -449,7 +449,6 @@ class Hivemind:
         self.history = []
         self.policies = None
         self.distancer = None
-        self.turnOffset = 0
 
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
@@ -480,8 +479,6 @@ class Hivemind:
             self.history.append((gameState, beliefs))
 
     def registerNewState(self, agentIndex, gameState):
-        if len(self.history) == 1 and agentIndex == 2:
-            self.turnOffset = 1
         beliefs = {}
         # Update belief about position of last agent on team to act
         lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
@@ -593,22 +590,25 @@ class Hivemind:
         newBelief.normalize()
         return newBelief
 
-    def getCurrentAgent(self):
-        return self.teamIndexes[(len(self.history) + self.turnOffset) % 2]
+    def getPreviousGameState(self, index=1):
+        return self.history[-index][0]
 
-    def getEnemyFood(self):
+    def getEnemyFood(self, gameState):
         foodGrid = None
         if self.isRed:
-            foodGrid = self.history[-1][0].getBlueFood()
+            foodGrid = gameState.getBlueFood()
         else:
-            foodGrid = self.history[-1][0].getRedFood()
+            foodGrid = gameState.getRedFood()
         return foodGrid
 
-    def getFeatures(self, state, action, iterable):
+    def getFeatures(self, state, action, index, iterable):
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
-        pos = state.getAgentPosition(self.getCurrentAgent())
+        distScaleFactor = float(state.getWalls().width * state.getWalls().height)
+        foodScaleFactor = self.history[0][0].getRedFood().count()
+        enemiesScaleFactor = len(self.enemyIndexes)
+        pos = state.getAgentPosition(index)
         position = Vectors.newPosition(pos[0], pos[1], action)
         features = util.Counter()
         # Boolean Features
@@ -621,54 +621,74 @@ class Hivemind:
         if "Home Side" in iterable:
             features["Home Side"] = self.homeSideFeature(position)
         if "Scared" in iterable:
-            features["Scared"] = self.scaredFeature()
+            features["Scared"] = self.scaredFeature(index)
         if "Grab Food" in iterable:
-            features["Grab Food"] = self.eatsFoodFeature(position)
+            features["Grab Food"] = self.eatsFoodFeature(index,  position, state)
         if "Capsule" in iterable:
             features["Capsule"] = self.eatsCapsuleFeature(position)
+        if "Delivery" in iterable:
+            features["Delivery"] = self.foodDeliveredFeature(index, position, state)
         # Distance Features
         if "Border" in iterable:
-            features["Border"] = 1 / (self.borderDistanceFeature(position) + 1)
+            features["Border"] = self.borderDistanceFeature(position) / distScaleFactor
         if "Food Dist" in iterable:
-            features["Food Dist"] = 1 / (self.foodDistanceFeature(position) + 1)
-        if "Enemy Dist" in iterable:
+            features["Food Dist"] = self.foodDistanceFeature(position, state) / distScaleFactor
+        if "Trespass" in iterable:
+            pacmen, dists = [], []
+            for enemy in self.enemyIndexes:
+                pacmen.append(state.getAgentState(enemy).isPacman)
+                dists.append(self.enemyDistanceFeature(position, enemy))
+            trespassers = [d for p, d in zip(pacmen, dists) if p == True]
+            trespass = min(trespassers if len(trespassers) != 0 else dists)
+            features["Trespass"] = trespass / distScaleFactor
+        if "Nearest Enemy Dist" in iterable:
             distances = []
             for enemy in self.enemyIndexes:
                 distances.append(self.enemyDistanceFeature(position, enemy))
-            features["Enemy Dist"] = 1 / (min(distances) + 1)
+            features["Nearest Enemy Dist"] = min(distances) / distScaleFactor
+        if "Enemy 0 Dist" in iterable:
+            features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0]) / distScaleFactor
+        if "Enemy 1 Dist" in iterable:
+            features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1]) / distScaleFactor
         # Misc Features
         if "Score" in iterable:
-            features["Score"] = self.scoreFeature(position)
+            features["Score"] = self.scoreFeature(index, position) / foodScaleFactor
         if "Turns" in iterable:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature(position)
+            features["Carrying"] = self.foodCarriedFeature(index, position, state) / foodScaleFactor
+        if "Return" in iterable:
+            features["Return"] = self.foodReturnFeature(index, position, state) / (foodScaleFactor * distScaleFactor)
         if "Near Food" in iterable:
-            features["Near Food"] = self.nearbyFoodFeature(position)
+            features["Near Food"] = self.nearbyFoodFeature(position, state) / foodScaleFactor
         if "Near Enemy" in iterable:
-            features["Near Enemy"] = self.oneAwayFeature(position)
+            features["Near Enemy"] = self.enemiesOneAway(index, position, state) / enemiesScaleFactor
+        if "Kill" in iterable:
+            features["Kill"] = self.kill(index, position, state) / enemiesScaleFactor
         return features
 
     """
     Feature Extractors
     """
     def onEdgeFeature(self, position):
-        return 1 if not self.board.positions[position].isNode else 0
+        return 1.0 if not self.board.positions[position].isNode else 0.0
 
     def inDeadEndFeature(self, position):
-        return 1 if self.board.positions[position].isDeadEnd() else 0
+        return 1.0 if self.board.positions[position].isDeadEnd() else 0.0
 
     def homeSideFeature(self, position):
-        return 1 if self.board.positions[position].isRed() == self.isRed else -1
+        return 1.0 if self.board.positions[position].isRed() == self.isRed else -1.0
 
-    def scaredFeature(self):
-        index = self.getCurrentAgent()
+    def scaredFeature(self, index):
         timer = self.history[-1][0].getAgentState(index).scaredTimer
-        return 1 if timer > 1 else 0
+        return 1.0 if timer > 1 else 0.0
 
-    def eatsFoodFeature(self, position):
+    def eatsFoodFeature(self, index,  position, state):
         x, y = position
-        return 1 if self.getEnemyFood()[x][y] else 0
+        if self.enemiesOneAway(index, position, state) == 0 and self.getEnemyFood(state)[x][y]:
+            return 1.0
+        else:
+            return 0.0
 
     def eatsCapsuleFeature(self, position):
         capsules = None
@@ -676,7 +696,15 @@ class Hivemind:
             capsules = self.history[-1][0].getBlueCapsules()
         else:
             capsules = self.history[-1][0].getRedCapsules()
-        return 1 if position in capsules else 0
+        return 1.0 if position in capsules else 0.0
+
+    def foodDeliveredFeature(self, index, position, state):
+        boardFeature = self.board.positions[position]
+        if (boardFeature.isNode and boardFeature.onBorder and
+                (boardFeature.isRed() == self.isRed) and
+                state.getAgentState(index).numCarrying > 0):
+            return 1.0
+        return 0.0
 
     def borderDistanceFeature(self, position):
         # Initialise search
@@ -708,12 +736,12 @@ class Hivemind:
                     hCost = int(abs(mid - successor[0].position[0]))
                     fringe.update(successor, successor[1] + hCost)
 
-    def foodDistanceFeature(self, position):
-        foodList = self.getEnemyFood().asList()
+    def foodDistanceFeature(self, position, state):
+        foodList = self.getEnemyFood(state).asList()
         distances = []
         for pos in foodList:
             distances.append(self.distancer.getDistance(position, pos))
-        return min(distances)
+        return min(distances) if len(distances) > 0 else 0.0
 
     def enemyDistanceFeature(self, position, enemyIndex):
         belief = self.history[-1][1][enemyIndex]
@@ -722,48 +750,74 @@ class Hivemind:
             distance += self.distancer.getDistance(position, pos) * belief[pos]
         return distance
 
-    def scoreFeature(self, position):
+    def scoreFeature(self, index, position):
         boardFeature = self.board.positions[position]
         gameState = self.history[-1][0]
         score = gameState.data.score
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
-            score += gameState.getAgentState(self.getCurrentAgent()).numCarrying
+            score += gameState.getAgentState(index).numCarrying
         if not self.isRed:
             score *= -1
-        initialFood = self.history[0][0].getRedFood().count()
-        return score / initialFood
+        return score
 
     def turnsRemainingFeature(self):
         return 300 - (len(self.history) / 2)
 
-    def foodCarriedFeature(self, position):
+    def foodCarriedFeature(self, index, position, state):
         boardFeature = self.board.positions[position]
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             return 0
-        index = self.getCurrentAgent()
         carried = self.history[-1][0].getAgentState(index).numCarrying
-        return carried + self.eatsFoodFeature(position)
+        return float(carried + self.eatsFoodFeature(index,  position, state))
 
-    def nearbyFoodFeature(self, position):
-        return self.board.positions[position].neighbouringFood(self.getEnemyFood())
+    def foodReturnFeature(self, index, position, state):
+        carried = self.foodCarriedFeature(index, position, state)
+        borderDist = self.borderDistanceFeature(position)
+        return carried * borderDist
 
-    def enemiesOneAway(self, position):
-        sumProb = 0
+    def nearbyFoodFeature(self, position, state):
+        return 1.0 if self.board.positions[position].neighbouringFood(self.getEnemyFood(state)) else 0.0
+
+    def enemiesOneAway(self, index, position, state):
+        numEnemies = 0.0
+        agentState = state.getAgentState(index)
         positions = self.board.positions[position].oneAway(position)
-        for agent in self.enemyIndexes:
-            sumProb += self.history[-1][1][agent][position]
+        for enemy in self.enemyIndexes:
+            enemyState = state.getAgentState(enemy)
             for pos in positions:
-                sumProb += self.history[-1][1][agent][pos]
-        return sumProb
+                if enemyState.getPosition() == pos:
+                    if ((enemyState.isPacman and agentState.scaredTimer < 1) or
+                            (self.board.positions[pos].isRed() != self.isRed
+                            and enemyState.scaredTimer > 0)):
+                        numEnemies += 1.0
+                    else:
+                        numEnemies -= 1.0
+        return numEnemies
+
+    def kill(self, index, position, state):
+        killValue = 0.0
+        agentState = state.getAgentState(index)
+        for enemy in self.enemyIndexes:
+            enemyState = state.getAgentState(enemy)
+            if enemyState.getPosition() == position:
+                if ((enemyState.isPacman and agentState.scaredTimer < 1) or
+                        (self.board.positions[position].isRed() != self.isRed
+                        and enemyState.scaredTimer > 0)):
+                    killValue += 1.0
+                else:
+                    killValue -= 1.0
+        return killValue
 
 #################
 # Team creation #
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'GreedyHivemindAgent', second = 'DefensiveHivemindAgent'):
+               first = 'AttackAgent', second = 'HunterAgent', **kwargs):
+  print(f"create Team {kwargs}")
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
-  return [eval(first)(firstIndex, hivemind), eval(second)(secondIndex, hivemind)]
+  return [eval(first)(firstIndex, hivemind, **kwargs),
+        eval(second)(secondIndex, hivemind, **kwargs)]
 
 ##########
 # Agents #
@@ -771,7 +825,7 @@ def createTeam(firstIndex, secondIndex, isRed,
 
 class GreedyHivemindAgent(CaptureAgent):
 
-  def __init__( self, index, hivemind , timeForComputing = .1):
+  def __init__( self, index, hivemind , timeForComputing = .1, **kwargs):
     self.index = index
     self.red = None
     self.distancer = None
@@ -835,20 +889,21 @@ class GreedyHivemindAgent(CaptureAgent):
         enemyPolicy = self.hivemind.policies.enemyPosValues[closestList[0]]
         value, actions = self.findBestActions(gameState, enemyPolicy)
     else:
-        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood())
+        nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(
+                self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
         if gameState.getAgentState(self.index).numCarrying > 2 and not nearbyFood:
             returnPolicy = self.hivemind.policies.returnHome
             value, actions = self.findBestActions(gameState, returnPolicy)
         else:
-            huntPolicy = self.hivemind.policies.huntValue
-            value, actions = self.findBestActions(gameState, huntPolicy)
-            if value == 0:
+            # huntPolicy = self.hivemind.policies.huntValue
+            # value, actions = self.findBestActions(gameState, huntPolicy)
+            # if value == 0:
                 foodPolicy = self.hivemind.policies.foodValues
                 value, actions = self.findBestActions(gameState, foodPolicy)
     return random.choice(actions)
 
 class DefensiveHivemindAgent(CaptureAgent):
-  def __init__( self, index, hivemind , timeForComputing = .1):
+  def __init__( self, index, hivemind , timeForComputing = .1, **kwargs):
     self.index = index
     self.red = None
     self.distancer = None
@@ -907,7 +962,8 @@ class DefensiveHivemindAgent(CaptureAgent):
   def chooseAction(self, gameState):
     self.hivemind.registerNewState(self.index, gameState)
     pos = gameState.getAgentPosition(self.index)
-    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(self.hivemind.getEnemyFood())
+    nearbyFood = self.hivemind.board.positions[pos].neighbouringFood(
+            self.hivemind.getEnemyFood(self.hivemind.getPreviousGameState()))
     value = 0
     actions = ['Stop']
     if gameState.getAgentState(self.index).numCarrying > 0 and not nearbyFood:
@@ -916,7 +972,286 @@ class DefensiveHivemindAgent(CaptureAgent):
     else:
         huntPolicy = self.hivemind.policies.huntValue
         value, actions = self.findBestActions(gameState, huntPolicy)
-        if gameState.getAgentState(self.index).scaredTimer > 0 or value == 0:
-            foodPolicy = self.hivemind.policies.foodValues
-            value, actions = self.findBestActions(gameState, foodPolicy)
+        # if gameState.getAgentState(self.index).scaredTimer > 0 or value == 0:
+        #     foodPolicy = self.hivemind.policies.foodValues
+        #     value, actions = self.findBestActions(gameState, foodPolicy)
     return random.choice(actions)
+
+class ApproximateQAgent(Agent):
+    def __init__(self, index, hivemind, epsilon=0.05, gamma=0.8, alpha=0.2, **kwargs):
+        # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
+        self.index = index
+        self.red = None
+        self.observationHistory = []
+        self.display = None
+        self.hivemind = hivemind
+        self.weights = util.Counter()
+        self.explorationChance = float(epsilon)
+        self.learningRate = float(alpha)
+        self.discount = float(gamma)
+        # Training reporting variables
+        if 'numTraining' in kwargs:
+            self.numTraining = int(kwargs['numTraining'])
+        else:
+            self.numTraining = 0
+        self.episodesSoFar = 0
+        self.accumTrainRewards = 0.0
+        self.accumTestRewards = 0.0
+
+    # Function for customizing Hivemind Q-Learning Agents
+    def rewardFunction(self, gameState, isFinal=False):
+        util.raiseNotDefined
+
+    # ApproximateQAgent functions copied from p3-reinforcement-s3689650
+    def registerInitialState(self, state):
+        self.startEpisode()
+        self.red = state.isOnRedTeam(self.index)
+        import __main__
+        if '_display' in dir(__main__):
+          self.display = __main__._display
+        self.hivemind.registerInitialState(self.index, state)
+        self.observationHistory.append(state)
+
+    def observationFunction(self, gameState):
+        state = gameState.makeObservation(self.index)
+        self.hivemind.registerNewState(self.index, state)
+        self.observationHistory.append(state)
+        if not self.lastState is None:
+            reward = self.rewardFunction(gameState)
+            self.episodeRewards += reward
+            self.update(self.lastState, self.lastAction, state, reward)
+        return state
+
+    def getQValue(self, state, action):
+        return self.weights * self.hivemind.getFeatures(state, action, self.index, self.weights)
+
+    def computeValueFromQValues(self, state):
+        value = float("-inf")
+        actions = state.getLegalActions(self.index)
+        if len(actions) > 0:
+            value = max([self.getQValue(state, action) for action in actions])
+        return value if value != float("-inf") else 0.0
+
+    def computeActionFromQValues(self, state):
+        bestActions = []
+        bestValue = self.computeValueFromQValues(state)
+        actions = state.getLegalActions(self.index)
+        for action in actions:
+            if self.getQValue(state, action) == bestValue:
+                bestActions.append(action)
+        bestAction = None
+        if len(bestActions) > 0:
+            bestAction = random.choice(bestActions)
+        elif len(actions) > 0:
+            bestAction = random.choice(actions)
+        return bestAction
+
+    def update(self, state, action, nextState, reward):
+        oldValue = self.getQValue(state, action)
+        nextValue = self.computeValueFromQValues(nextState)
+        difference = (reward + self.discount * nextValue) - oldValue
+        features = self.hivemind.getFeatures(state, action, self.index, self.weights)
+        for feat in features:
+            self.weights[feat] += self.learningRate * difference * features[feat]
+
+    def getAction(self, state):
+        legalActions = state.getLegalActions(self.index)
+        action = None
+        if len(legalActions) > 0:
+            if util.flipCoin(self.explorationChance):
+                action = random.choice(legalActions)
+            else:
+                action = self.computeActionFromQValues(state)
+        self.lastState = state
+        self.lastAction = action
+        return action
+
+    ### Episode Related Functions copied from p3-reinforcement
+    def startEpisode(self):
+        """
+          Called by environment when new episode is starting
+        """
+        self.lastState = None
+        self.lastAction = None
+        self.episodeRewards = 0.0
+
+    def stopEpisode(self):
+        """
+          Called by environment when episode is done
+        """
+        if self.episodesSoFar < self.numTraining:
+            self.accumTrainRewards += self.episodeRewards
+        else:
+            self.accumTestRewards += self.episodeRewards
+        self.episodesSoFar += 1
+        if self.episodesSoFar >= self.numTraining:
+            # Take off the training wheels
+            self.explorationChance = 0.0    # no exploration
+            self.learningRate = 0.0      # no learning
+
+    def isInTraining(self):
+        return self.episodesSoFar < self.numTraining
+
+    def isInTesting(self):
+        return not self.isInTraining()
+
+    def final(self, state):
+        "Called at the end of each game."
+        self.observationHistory = []
+        # call the super-class final method
+        self.hivemind.registerNewState(self.index, state)
+        deltaReward = self.rewardFunction(state, True)
+        self.episodeRewards += deltaReward
+        self.update(self.lastState, self.lastAction, state, deltaReward)
+        self.stopEpisode()
+
+        # Make sure we have this var
+        if not 'episodeStartTime' in self.__dict__:
+            self.episodeStartTime = time.time()
+        if not 'lastWindowAccumRewards' in self.__dict__:
+            self.lastWindowAccumRewards = 0.0
+        self.lastWindowAccumRewards += self.episodeRewards
+
+
+        NUM_EPS_UPDATE = 1
+        if self.episodesSoFar % NUM_EPS_UPDATE == 0:
+            print('Reinforcement Learning Status:')
+            windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
+            if self.episodesSoFar <= self.numTraining:
+                trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
+                print('\tCompleted %d out of %d training episodes' % (
+                        self.episodesSoFar,self.numTraining))
+                print('\tAverage Rewards over all training: %.2f' % (
+                        trainAvg))
+            else:
+                testAvg = float(self.accumTestRewards) / (self.episodesSoFar - self.numTraining)
+                print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
+                print('\tAverage Rewards over testing: %.2f' % testAvg)
+            print('\tAverage Rewards for last %d episodes: %.2f'  % (
+                    NUM_EPS_UPDATE,windowAvg))
+            print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
+            self.lastWindowAccumRewards = 0.0
+            self.episodeStartTime = time.time()
+
+        if self.episodesSoFar == self.numTraining:
+            msg = 'Training Done (turning off epsilon and alpha)'
+            print('%s\n%s' % (msg,'-' * len(msg)))
+
+        # did we finish training?
+        if self.episodesSoFar == self.numTraining:
+            # you might want to print your weights here for debugging
+            "*** YOUR CODE HERE ***"
+            print(self.weights)
+
+    ### Debug functions copied from CaptureAgent
+    def debugDraw(self, cells, color, clear=False):
+      if self.display:
+        from captureGraphicsDisplay import PacmanGraphics
+        if isinstance(self.display, PacmanGraphics):
+          if not type(cells) is list:
+            cells = [cells]
+          self.display.debugDraw(cells, color, clear)
+
+    def debugClear(self):
+        if self.display:
+            from captureGraphicsDisplay import PacmanGraphics
+            if isinstance(self.display, PacmanGraphics):
+                self.display.clearDebug()
+
+    def displayDistributionsOverPositions(self, distributions):
+        dists = []
+        for dist in distributions:
+            if dist != None:
+                if not isinstance(dist, util.Counter): raise Exception("Wrong type of distribution")
+                dists.append(dist)
+            else:
+                dists.append(util.Counter())
+        if self.display != None and 'updateDistributions' in dir(self.display):
+            self.display.updateDistributions(dists)
+        else:
+            self._distributions = dists # These can be read by pacclient.py
+
+class AllFeaturesAgent(ApproximateQAgent):
+    def __init__(self, *args, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        weights = util.Counter()
+        weights["Bias"] = 1.0
+        weights["On Edge"] = 1.0
+        weights["Dead End"] = 1.0
+        weights["Home Side"] = 1.0
+        weights["Scared"] = 1.0
+        weights["Grab Food"] = 1.0
+        weights["Capsule"] = 1.0
+        weights["Delivery"] = 1.0
+        weights["Border"] = 1.0
+        weights["Food Dist"] = 1.0
+        weights["Trespass"] = 1.0
+        weights["Nearest Enemy Dist"] = 1.0
+        weights["Enemy 0 Dist"] = 1.0
+        weights["Enemy 1 Dist"] = 1.0
+        weights["Score"] = 1.0
+        weights["Turns"] = 1.0
+        weights["Carrying"] = 1.0
+        weights["Return"] = 1.0
+        weights["Near Food"] = 1.0
+        weights["Near Enemy"] = 1.0
+        weights["Kill"] = 1.0
+        self.weights = weights
+
+class HunterAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        weights = util.Counter()
+        weights["Trespass"] = -43.52709827983609
+        weights["Near Enemy"] = 113.58509702452676
+        weights["Kill"] = 195.97367809099194
+        self.weights = weights
+
+    def rewardFunction(self, gameState, isFinal=False):
+        scoreChange = gameState.getScore() - self.lastState.getScore()
+        if not self.hivemind.isRed:
+            scoreChange *= -1.0
+        reward = min(0.0, scoreChange) * 100.0
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y,
+                self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if gameState.getAgentPosition(self.index) != lastPos:
+            reward -= 100.0
+        elif lastPos in lastEnemyPos:
+            reward += 100.0
+        return reward if reward != 0.0 else 1.0
+
+class AttackAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        weights = util.Counter()
+        weights["Near Enemy"] = 42.88718091048829
+        weights["Kill"] = 38.7956831767021
+        weights["Grab Food"] = 5.71864804146864
+        weights["Delivery"] = 25.73787094094885
+        weights["Food Dist"] = -3.263353405110272
+        weights["Trespass"] = -0.6578892848291951
+        self.weights = weights
+
+    def rewardFunction(self, gameState, isFinal=False):
+        carryDiff = float(gameState.getAgentState(self.index).numCarrying -
+                self.lastState.getAgentState(self.index).numCarrying)
+        returnDiff = float(gameState.getAgentState(self.index).numReturned -
+                self.lastState.getAgentState(self.index).numReturned)
+        reward = (returnDiff + carryDiff / 2.0) * 10.0
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y,
+                self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if gameState.getAgentPosition(self.index) != lastPos:
+            reward -= 5.0
+        elif lastPos in lastEnemyPos:
+            reward += 5.0
+        if isFinal:
+            reward -= gameState.getAgentState(self.index).numCarrying * 5.0
+        return reward if reward != 0.0 else -0.05
