@@ -626,6 +626,8 @@ class Hivemind:
             features["Grab Food"] = self.eatsFoodFeature(index,  position, state)
         if "Capsule" in iterable:
             features["Capsule"] = self.eatsCapsuleFeature(position)
+        if "Delivery" in iterable:
+            features["Delivery"] = self.foodDeliveredFeature(index, position, state)
         # Distance Features
         if "Border" in iterable:
             features["Border"] = self.borderDistanceFeature(position) / distScaleFactor
@@ -655,8 +657,8 @@ class Hivemind:
             features["Turns"] = self.turnsRemainingFeature()
         if "Carrying" in iterable:
             features["Carrying"] = self.foodCarriedFeature(index, position, state) / foodScaleFactor
-        if "Returned" in iterable:
-            features["Returned"] = self.foodReturnedFeature(index, position, state) / foodScaleFactor
+        if "Return" in iterable:
+            features["Return"] = self.foodReturnFeature(index, position, state) / (foodScaleFactor * distScaleFactor)
         if "Near Food" in iterable:
             features["Near Food"] = self.nearbyFoodFeature(position, state) / foodScaleFactor
         if "Near Enemy" in iterable:
@@ -695,6 +697,14 @@ class Hivemind:
         else:
             capsules = self.history[-1][0].getRedCapsules()
         return 1.0 if position in capsules else 0.0
+
+    def foodDeliveredFeature(self, index, position, state):
+        boardFeature = self.board.positions[position]
+        if (boardFeature.isNode and boardFeature.onBorder and
+                (boardFeature.isRed() == self.isRed) and
+                state.getAgentState(index).numCarrying > 0):
+            return 1.0
+        return 0.0
 
     def borderDistanceFeature(self, position):
         # Initialise search
@@ -758,14 +768,12 @@ class Hivemind:
         if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
             return 0
         carried = self.history[-1][0].getAgentState(index).numCarrying
-        return float(carried + self.eatsFoodFeature(position, state))
+        return float(carried + self.eatsFoodFeature(index,  position, state))
 
-    def foodReturnedFeature(self, index, position, state):
-        returned = 0.0
-        boardFeature = self.board.positions[position]
-        if boardFeature.isNode and boardFeature.onBorder and (boardFeature.isRed() == self.isRed):
-            returned += state.getAgentState(index).numCarrying
-        return float(returned)
+    def foodReturnFeature(self, index, position, state):
+        carried = self.foodCarriedFeature(index, position, state)
+        borderDist = self.borderDistanceFeature(position)
+        return carried * borderDist
 
     def nearbyFoodFeature(self, position, state):
         return 1.0 if self.board.positions[position].neighbouringFood(self.getEnemyFood(state)) else 0.0
@@ -1174,6 +1182,7 @@ class AllFeaturesAgent(ApproximateQAgent):
         weights["Scared"] = 1.0
         weights["Grab Food"] = 1.0
         weights["Capsule"] = 1.0
+        weights["Delivery"] = 1.0
         weights["Border"] = 1.0
         weights["Food Dist"] = 1.0
         weights["Trespass"] = 1.0
@@ -1183,7 +1192,7 @@ class AllFeaturesAgent(ApproximateQAgent):
         weights["Score"] = 1.0
         weights["Turns"] = 1.0
         weights["Carrying"] = 1.0
-        weights["Returned"] = 1.0
+        weights["Return"] = 1.0
         weights["Near Food"] = 1.0
         weights["Near Enemy"] = 1.0
         weights["Kill"] = 1.0
@@ -1222,8 +1231,10 @@ class AttackAgent(ApproximateQAgent):
         weights["Near Enemy"] = 1.0
         weights["Kill"] = 1.0
         weights["Grab Food"] = 1.0
-        weights["Returned"] = 1.0
-        weights["Food Dist"] = 1.0
+        weights["Delivery"] = 1.0
+        weights["Food Dist"] = -1.0
+        weights["Return"] = -1.0
+        weights["Nearest Enemy Dist"] = 1.0
         self.weights = weights
 
     def rewardFunction(self, gameState, isFinal=False):
