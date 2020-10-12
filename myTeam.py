@@ -789,8 +789,7 @@ class Hivemind:
             for pos in positions:
                 if enemyState.getPosition() == pos:
                     if ((enemyState.isPacman and agentState.scaredTimer < 1) or
-                            (self.board.positions[pos].isRed() != self.isRed
-                            and enemyState.scaredTimer > 0)):
+                            (enemyState.scaredTimer > 0 and not enemyState.isPacman)):
                         numEnemies += 1.0
                     else:
                         numEnemies -= 1.0
@@ -803,8 +802,7 @@ class Hivemind:
             enemyState = state.getAgentState(enemy)
             if enemyState.getPosition() == position:
                 if ((enemyState.isPacman and agentState.scaredTimer < 1) or
-                        (self.board.positions[position].isRed() != self.isRed
-                        and enemyState.scaredTimer > 0)):
+                        (enemyState.scaredTimer > 0 and not enemyState.isPacman)):
                     killValue += 1.0
                 else:
                     killValue -= 1.0
@@ -1431,3 +1429,34 @@ class ReactiveAgent(ApproximateQAgent):
         if isFinal:
             reward -= gameState.getAgentState(self.index).numCarrying * 5.0
         return reward if reward != 0.0 else -0.05
+
+    def getAction(self, state):
+        if self.mode == None:
+            self.setMode(state)
+        action = None
+        if self.mode == "Patrol":
+            pos = state.getAgentPosition(self.index)
+            if self.patrol == pos or self.patrol == None:
+                pass
+            actions = Vectors.findNeigbours(pos[0], pos[1], state.getWalls())
+            values = []
+            for action in actions:
+                newPos = Vectors.newPos(pos[0], pos[1], action)
+                if self.hivemind.enemiesOneAway(self.index, pos, state) < 0.0 or
+                        self.hivemind.kill(self.index, pos, state) < 0.0:
+                    values.append(float("inf"))
+                else:
+                    values.append(self.hivemind.distancer.getDistance(pos, newPos))
+            minValue = min(values)
+            bestActions = [a for a, v in zip(actions, values) if v == minValue]
+            action = random.choice(bestActions) if len(bestActions) > 0 else 'Stop'
+        else:
+            legalActions = state.getLegalActions(self.index)
+            if len(legalActions) > 0:
+                if util.flipCoin(self.explorationChance):
+                    action = random.choice(legalActions)
+                else:
+                    action = self.computeActionFromQValues(state)
+            self.lastState = state
+            self.lastAction = action
+        return action
