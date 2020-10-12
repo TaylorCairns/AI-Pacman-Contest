@@ -1288,15 +1288,37 @@ class AttackAgent(ApproximateQAgent):
 class ReactiveAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
-        util.raiseNotDefined()
         # patrolMode - patrols border
-        # huntMode - hunts enemy pacman
+        self.mode = "Patrol"
+        self.patrol = None
         # recklessFood - greedy food grab
         # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
+        self.food = util.Counter()
+        self.food["Near Enemy"] = 42.88718091048829
+        self.food["Kill"] = 38.7956831767021
+        self.food["Grab Food"] = 5.71864804146864
+        self.food["Delivery"] = 25.73787094094885
+        self.food["Food Dist"] = -3.263353405110272
+        self.food["Trespass"] = -0.6578892848291951
+        # huntMode - hunts enemy pacman
+        self.hunt = util.Counter()
+        self.hunt["Trespass"] = -43.52709827983609
+        self.hunt["Near Enemy"] = 113.58509702452676
+        self.hunt["Kill"] = 195.97367809099194
         # escapeMode - safely returns home
+        self.escape = util.Counter()
+        self.escape["Near Enemy"] = 1.0
+        self.escape["Kill"] = 1.0
+        self.escape["Border"] = 1.0
+        self.escape["Home Side"] = 1.0
         # suicideMode - kills self asap
-        #
-"""        triggers
+        self.suicide = util.Counter()
+        self.suicide["Near Enemy"] = -1.0
+        self.suicide["Kill"] = -1.0
+        self.suicide["Nearest Enemy"] = -1.0
+
+    """
+        Mode triggers
         start - patrolMode
         patrol mode - enemy pacman - huntMode
         patrol mode - food < half enemy distance - recklessFood
@@ -1307,7 +1329,8 @@ class ReactiveAgent(ApproximateQAgent):
         cautiousFood/recklessFood - enemy Pacman and not scared - huntMode
         cautiousFood - chased - escapeMode
         recklessFood/cautiousFood/escapeMode - trapped - suicideMode
-        escapeMode - returned home - patrolMode"""
+        escapeMode - returned home - patrolMode
+    """
     def setMode(self, gameState):
         agentPos = gameState.getAgentPosition(self.index)
         agentState = gameState.getAgentState(self.index)
@@ -1367,6 +1390,26 @@ class ReactiveAgent(ApproximateQAgent):
         elif self.mode == "Escape":
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Patrol"
+
+    def getWeights(self):
+        if self.mode == None:
+            return self.weights
+        elif self.mode == "Patrol":
+            return self.weights
+        elif self.mode == "Hunt":
+            return self.hunt
+        elif self.mode == "Suicide":
+            return self.suicide
+        elif self.mode == "Food":
+            return self.food
+        elif self.mode == "Escape":
+            return self.escape
+
+    def printWeights(self):
+        print(f"Hunt: {self.hunt}")
+        print(f"Food: {self.food}")
+        print(f"Escape: {self.escape}")
+        print(f"Suicide: {self.suicide}")
 
     def rewardFunction(self, gameState, isFinal=False):
         util.raiseNotDefined()
