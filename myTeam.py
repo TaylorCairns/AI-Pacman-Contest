@@ -242,7 +242,7 @@ class BoardNode:
 
     def trapped(self, position, enemyIndexes, beliefDistribution):
         if len(self.exits) == 1:
-            edge = self.exits.values()[0]
+            edge = iter(self.exits.values()).__next__()
             for enemy in enemyIndexes:
                 prob = self.calcAgentProb(beliefDistribution[enemy])
                 prob += edge.calcAgentProb(beliefDistribution[enemy])
@@ -1096,7 +1096,7 @@ class ApproximateQAgent(Agent):
             reward = self.rewardFunction(gameState)
             self.episodeRewards += reward
             self.update(self.lastState, self.lastAction, state, reward)
-            self.setMode()
+            self.setMode(gameState)
         return state
 
     def getQValue(self, state, action):
@@ -1340,17 +1340,17 @@ class ReactiveAgent(ApproximateQAgent):
         # recklessFood - greedy food grab
         # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
         self.food = util.Counter()
-        self.food["Near Enemy"] = 42.88718091048829
-        self.food["Kill"] = 38.7956831767021
-        self.food["Grab Food"] = 5.71864804146864
-        self.food["Delivery"] = 25.73787094094885
-        self.food["Food Dist"] = -3.263353405110272
-        self.food["Trespass"] = -0.6578892848291951
+        self.food["Near Enemy"] = 1.0
+        self.food["Kill"] = 1.0
+        self.food["Grab Food"] = 1.0
+        self.food["Delivery"] = 1.0
+        self.food["Food Dist"] = -1.0
+        self.food["Nearest Enemy"] = 1.0
         # huntMode - hunts enemy pacman
         self.hunt = util.Counter()
-        self.hunt["Trespass"] = -43.52709827983609
-        self.hunt["Near Enemy"] = 113.58509702452676
-        self.hunt["Kill"] = 195.97367809099194
+        self.hunt["Trespass"] = -1.0
+        self.hunt["Near Enemy"] = 1.0
+        self.hunt["Kill"] = 1.0
         # escapeMode - safely returns home
         self.escape = util.Counter()
         self.escape["Near Enemy"] = 1.0
@@ -1414,7 +1414,7 @@ class ReactiveAgent(ApproximateQAgent):
             if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
                     self.hivemind.getBeliefDistributions()):
                 self.mode = "Suicide"
-            elif self.hivemind.beingChased(index, gameState) == 1.0:
+            elif self.hivemind.beingChased(self.index, gameState) == 1.0:
                 self.mode = "Escape"
             else:
                 for enemy in self.hivemind.enemyIndexes:
@@ -1461,7 +1461,7 @@ class ReactiveAgent(ApproximateQAgent):
                 reward += 100.0
         elif lastPos in lastEnemyPos:
             # Killed enemy - Bonus if Hunt/Patrol
-            if self.mode == "Hunt" or self.mode == "Patrol"
+            if self.mode == "Hunt" or self.mode == "Patrol":
                 reward += 100.0
             elif self.mode == "Suicide":
                 reward -= 100.0
@@ -1469,7 +1469,7 @@ class ReactiveAgent(ApproximateQAgent):
         scoreChange = gameState.getScore() - self.lastState.getScore()
         if not self.hivemind.isRed:
             scoreChange *= -1.0
-        if self.mode == "Hunt" or self.mode == "Patrol"
+        if self.mode == "Hunt" or self.mode == "Patrol":
             reward += min(0.0, scoreChange) * 100.0
         if self.mode == "Food" or self.mode == "Escape":
             # Carry Gain - Bonus if AnyFood
@@ -1504,23 +1504,23 @@ class ReactiveAgent(ApproximateQAgent):
                 x = state.getWalls().width // 2
                 if not self.hivemind.isRed:
                     x += 1
-                targets = filter(lambda n: n[0] == x, targets)
+                targets = [target for target in targets if target[0] == x]
                 if self.patrol != None:
                     y = state.getWalls().height // 2
                     temp = []
                     if pos[1] > y:
-                        temp = filter(lambda n: n[1] <= y, targets)
+                        temp = [target for target in targets if target[1] <= y]
                     else:
-                        temp = filter(lambda n: n[1] > y, targets)
+                        temp = [target for target in targets if target[1] > y]
                     if len(temp) > 0:
                         targets = temp
                 self.patrol = random.choice(targets)
             actions = Vectors.findNeigbours(pos[0], pos[1], state.getWalls())
             values = []
             for action in actions:
-                newPos = Vectors.newPos(pos[0], pos[1], action)
-                if self.hivemind.enemiesOneAway(self.index, pos, state) < 0.0 or
-                        self.hivemind.kill(self.index, pos, state) < 0.0:
+                newPos = Vectors.newPosition(pos[0], pos[1], action)
+                if (self.hivemind.enemiesOneAway(self.index, pos, state) < 0.0 or
+                        self.hivemind.kill(self.index, pos, state) < 0.0):
                     values.append(float("inf"))
                 else:
                     values.append(self.hivemind.distancer.getDistance(pos, newPos))
@@ -1534,6 +1534,6 @@ class ReactiveAgent(ApproximateQAgent):
                     action = random.choice(legalActions)
                 else:
                     action = self.computeActionFromQValues(state)
-            self.lastState = state
-            self.lastAction = action
+        self.lastState = state
+        self.lastAction = action
         return action
