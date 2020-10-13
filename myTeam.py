@@ -1336,6 +1336,7 @@ class ReactiveAgent(ApproximateQAgent):
         # patrolMode - patrols border
         self.mode = "Patrol"
         self.patrol = None
+        self.weights["Bias"] = 0.0
         # recklessFood - greedy food grab
         # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
         self.food = util.Counter()
@@ -1499,7 +1500,21 @@ class ReactiveAgent(ApproximateQAgent):
         if self.mode == "Patrol":
             pos = state.getAgentPosition(self.index)
             if self.patrol == pos or self.patrol == None:
-                pass
+                targets = self.hivemind.board.border.keys()
+                x = state.getWalls().width // 2
+                if not self.hivemind.isRed:
+                    x += 1
+                targets = filter(lambda n: n[0] == x, targets)
+                if self.patrol != None:
+                    y = state.getWalls().height // 2
+                    temp = []
+                    if pos[1] > y:
+                        temp = filter(lambda n: n[1] <= y, targets)
+                    else:
+                        temp = filter(lambda n: n[1] > y, targets)
+                    if len(temp) > 0:
+                        targets = temp
+                self.patrol = random.choice(targets)
             actions = Vectors.findNeigbours(pos[0], pos[1], state.getWalls())
             values = []
             for action in actions:
