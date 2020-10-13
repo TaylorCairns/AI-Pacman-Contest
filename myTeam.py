@@ -149,6 +149,24 @@ class BoardEdge:
         else:
             return None
 
+    def trapped(self, position, enemyIndexes, beliefDistribution):
+        index = self.positions.index(position)
+        if self.ends[0].isDeadEnd():
+            for enemy in enemyIndexes:
+                prob = self.ends[1].calcAgentProb(beliefDistribution[enemy])
+                for i in range(index, len(self.positions)):
+                    prob += beliefDistribution[enemy][self.positions[i]]
+                if prob == 1.0:
+                    return True
+        elif self.ends[1].isDeadEnd():
+            for enemy in enemyIndexes:
+                prob = self.ends[0].calcAgentProb(beliefDistribution[enemy])
+                for i in range(index + 1):
+                    prob += beliefDistribution[enemy][self.positions[i]]
+                if prob == 1.0:
+                    return True
+        return False
+
 class BoardNode:
     """
     Represents a junction or terminal point of the board
@@ -222,6 +240,29 @@ class BoardNode:
     def isRed(self):
         return self.red
 
+    def trapped(self, position, enemyIndexes, beliefDistribution):
+        if len(self.exits) == 1:
+            edge = self.exits.values()[0]
+            for enemy in enemyIndexes:
+                prob = self.calcAgentProb(beliefDistribution[enemy])
+                prob += edge.calcAgentProb(beliefDistribution[enemy])
+                prob += edge.end(self).calcAgentProb(beliefDistribution[enemy])
+                if prob == 1.0:
+                    return True
+        elif len(self.exits) == 2:
+            blocked = {}
+            for exit in self.exits:
+                blocked[exit] = False
+                edge = self.exits[exit]
+                for enemy in enemyIndexes:
+                    prob = self.calcAgentProb(beliefDistribution[enemy])
+                    prob += edge.calcAgentProb(beliefDistribution[enemy])
+                    prob += edge.end(self).calcAgentProb(beliefDistribution[enemy])
+                    if prob == 1.0:
+                        blocked[exit] = True
+            if all(blocked.values()):
+                return True
+        return False
 class BoardGraph:
     """
     A graph representation of the pacman board
@@ -1368,21 +1409,9 @@ class ReactiveAgent(ApproximateQAgent):
             if agentPos == agentState.start.pos:
                 self.mode = "Patrol"
         elif self.mode == "Food":
-            trapped = False
             boardFeature = self.hivemind.board.positions[agentPos]
-            if boardFeature.isDeadEnd():
-                enemyDist = self.hivemind.nearestEnemyFeature(agentPos)
-                if boardFeature.isNode:
-                    key, value = boardFeature.exits.items()
-                    if enemyDist <= value.weight():
-                        trapped = True
-                else:
-                    begin, end = boardFeature.distances(agentPos)
-                    if end[0].isDeadEnd() and enemyDist <= begin[1]:
-                        trapped = True
-                    elif begin[0].isDeadEnd() and enemyDist <= end[1]:
-                        trapped = True
-            if trapped:
+            if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
+                    self.hivemind.getBeliefDistributions()):
                 self.mode = "Suicide"
             elif self.hivemind.beingChased(index, gameState) == 1.0:
                 self.mode = "Escape"
