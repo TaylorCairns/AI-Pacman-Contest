@@ -1502,16 +1502,16 @@ class ReactiveAgent(ApproximateQAgent):
             if self.patrol == pos or self.patrol == None:
                 targets = self.hivemind.board.border.keys()
                 x = state.getWalls().width // 2
-                if not self.hivemind.isRed:
-                    x += 1
+                if self.hivemind.isRed:
+                    x -= 1
                 targets = [target for target in targets if target[0] == x]
                 if self.patrol != None:
                     y = state.getWalls().height // 2
                     temp = []
-                    if pos[1] > y:
-                        temp = [target for target in targets if target[1] <= y]
+                    if pos[1] >= y:
+                        temp = [target for target in targets if target[1] < y]
                     else:
-                        temp = [target for target in targets if target[1] > y]
+                        temp = [target for target in targets if target[1] >= y]
                     if len(temp) > 0:
                         targets = temp
                 self.patrol = random.choice(targets)
@@ -1523,7 +1523,7 @@ class ReactiveAgent(ApproximateQAgent):
                         self.hivemind.kill(self.index, pos, state) < 0.0):
                     values.append(float("inf"))
                 else:
-                    values.append(self.hivemind.distancer.getDistance(pos, newPos))
+                    values.append(self.hivemind.distancer.getDistance(self.patrol, newPos))
             minValue = min(values)
             bestActions = [a for a, v in zip(actions, values) if v == minValue]
             action = random.choice(bestActions) if len(bestActions) > 0 else 'Stop'
