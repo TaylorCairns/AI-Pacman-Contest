@@ -713,7 +713,7 @@ class Hivemind:
         if "Kill" in iterable:
             features["Kill"] = self.kill(index, position, state) / enemiesScaleFactor
         if "Chased" in iterable:
-            features["Chased"] = self.beingChased(index, state)
+            features["Chased"] = self.beingChased(index, position, state)
         return features
 
     """
@@ -855,14 +855,21 @@ class Hivemind:
                     killValue -= 1.0
         return killValue
 
-    def beingChased(self, index, state):
-        chasedValue = 0.0
+    def beingChased(self, index, position, state):
         for enemy in self.enemyIndexes:
-            enemyState = state.getAgentState(enemy)
-            allyHist = self.history[-3][0].getAgentState(index)
-            if enemyState.getPosition() == allyHist.getPosition:
-                chasedValue = -1.0
-        return chasedValue
+            enemyPos = state.getAgentPosition(enemy)
+            if enemyPos != None:
+                lastBelief = self.history[-3][1][enemy]
+                lastDistance = 0
+                for pos in lastBelief:
+                    lastDistance += self.distancer.getDistance(position, pos) * lastBelief[pos]
+                belief = self.history[-1][1][enemy]
+                distance = 0
+                for pos in belief:
+                    distance += self.distancer.getDistance(position, pos) * belief[pos]
+                if distance <= lastDistance:
+                    return 1.0
+        return 0.0
 
     def nearestEnemyFeature(self, position):
         distances = []
@@ -1075,7 +1082,7 @@ class ApproximateQAgent(Agent):
     def printWeights(self):
         print(self.weights)
 
-    def setMode(self):
+    def setMode(self, gameState):
         self.mode = None
 
     # ApproximateQAgent functions copied from p3-reinforcement-s3689650
@@ -1414,7 +1421,7 @@ class ReactiveAgent(ApproximateQAgent):
             if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
                     self.hivemind.getBeliefDistributions()):
                 self.mode = "Suicide"
-            elif self.hivemind.beingChased(self.index, gameState) == 1.0:
+            elif self.hivemind.beingChased(self.index, agentPos, gameState) == 1.0:
                 self.mode = "Escape"
             else:
                 for enemy in self.hivemind.enemyIndexes:
