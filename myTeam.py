@@ -694,6 +694,8 @@ class Hivemind:
             features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0]) / distScaleFactor
         if "Enemy 1 Dist" in agent.getWeights():
             features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1]) / distScaleFactor
+        if "Nearest Threat" in agent.getWeights():
+            features["Nearest Threat"] = self.nearestThreatFeature(agent.index, position, state) / distScaleFactor
         if "Target Position" in agent.getWeights():
             features["Target Position"] = self.targetDistanceFeature(position, agent) / distScaleFactor
         # Misc Features
@@ -837,6 +839,22 @@ class Hivemind:
             dists.append(self.enemyDistanceFeature(position, enemy))
         trespassers = [d for p, d in zip(pacmen, dists) if p == True]
         return min(trespassers) if len(trespassers) != 0 else 0.0
+
+    def nearestThreatFeature(self, index, position, state):
+        pacmen, dists, scares = [], [], []
+        for enemy in self.enemyIndexes:
+            pacmen.append(state.getAgentState(enemy).isPacman)
+            dists.append(self.enemyDistanceFeature(position, enemy))
+            scares.append(state.getAgentState(enemy).scaredTimer)
+        distance = float('inf')
+        scared = state.getAgentState(index).scaredTimer
+        pacmans = [d for p, d in zip(pacmen, dists) if p == True and scared > d / 2]
+        if len(pacmans) > 0:
+            distance = min(pacmans)
+        ghosts = [d for p, d, s in zip(pacmen, dists, scares) if p == False and s < d / 2]
+        if len(ghosts) > 0:
+            distance = min(distance, min(ghosts))
+        return distance if distance != float('inf') else 0.0
 
     def targetDistanceFeature(self, position, agent):
         return self.distancer.getDistance(position, agent.target)
