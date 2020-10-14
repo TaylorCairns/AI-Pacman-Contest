@@ -1342,10 +1342,15 @@ class AttackAgent(ApproximateQAgent):
 class ReactiveAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
-        # patrolMode - patrols border
         self.mode = None
         self.target = None
         self.weights["Bias"] = 0.0
+        # patrolMode - patrols border
+        self.patrol = util.Counter()
+        self.patrol["Near Enemy"] = 1.0
+        self.patrol["Kill"] = 1.0
+        self.patrol["Dead End"] = -1.0
+        self.patrol["Target Position"] = -1.0
         # recklessFood - greedy food grab
         # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
         self.food = util.Counter()
