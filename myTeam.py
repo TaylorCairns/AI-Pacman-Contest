@@ -1064,6 +1064,7 @@ class ApproximateQAgent(Agent):
         self.learningRate = float(alpha)
         self.discount = float(gamma)
         self.mode = None
+        self.target = None
         # Training reporting variables
         if 'numTraining' in kwargs:
             self.numTraining = int(kwargs['numTraining'])
@@ -1189,6 +1190,7 @@ class ApproximateQAgent(Agent):
         deltaReward = self.rewardFunction(state, True)
         self.episodeRewards += deltaReward
         self.update(self.lastState, self.lastAction, state, deltaReward)
+        self.target = None
         self.stopEpisode()
 
         # Make sure we have this var
