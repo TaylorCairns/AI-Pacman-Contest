@@ -1527,4 +1527,7 @@ class ReactiveAgent(ApproximateQAgent):
         if self.mode != "Hunt" and self.mode != "Suicide" and boardFeature.trapped(pos,
                 self.hivemind.enemyIndexes, self.hivemind.getBeliefDistributions()):
             reward -= 50.0
+        # Patrol Destination Reached - Bonus if Patrolling
+        if self.mode == "Patrol" and self.target == pos:
+            reward += 5.0
         return reward
