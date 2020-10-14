@@ -867,7 +867,7 @@ class Hivemind:
                 distance = 0
                 for pos in belief:
                     distance += self.distancer.getDistance(position, pos) * belief[pos]
-                if distance <= lastDistance:
+                if distance <= lastDistance and distance < 6:
                     return 1.0
         return 0.0
 
