@@ -648,39 +648,39 @@ class Hivemind:
             distributions.append(self.history[-1][1][agentIndex].copy())
         return distributions
 
-    def getFeatures(self, state, action, index, iterable):
+    def getFeatures(self, state, action, agent):
         """
         Takes the future position to get features for and a iterable of the features you want.
         """
         distScaleFactor = float(state.getWalls().width * state.getWalls().height)
         foodScaleFactor = self.history[0][0].getRedFood().count()
         enemiesScaleFactor = len(self.enemyIndexes)
-        pos = state.getAgentPosition(index)
-        position = Vectors.newPosition(pos[0], pos[1], action)
+        x, y = state.getAgentPosition(agent.index)
+        position = Vectors.newPosition(x, y, action)
         features = util.Counter()
         # Boolean Features
-        if "Bias" in iterable:
+        if "Bias" in agent.getWeights():
             features["Bias"] = 1.0
-        if "On Edge" in iterable:
+        if "On Edge" in agent.getWeights():
             features["On Edge"] = self.onEdgeFeature(position)
-        if "Dead End" in iterable:
+        if "Dead End" in agent.getWeights():
             features["Dead End"] = self.inDeadEndFeature(position)
-        if "Home Side" in iterable:
+        if "Home Side" in agent.getWeights():
             features["Home Side"] = self.homeSideFeature(position)
-        if "Scared" in iterable:
-            features["Scared"] = self.scaredFeature(index)
-        if "Grab Food" in iterable:
-            features["Grab Food"] = self.eatsFoodFeature(index,  position, state)
-        if "Capsule" in iterable:
+        if "Scared" in agent.getWeights():
+            features["Scared"] = self.scaredFeature(agent.index)
+        if "Grab Food" in agent.getWeights():
+            features["Grab Food"] = self.eatsFoodFeature(agent.index,  position, state)
+        if "Capsule" in agent.getWeights():
             features["Capsule"] = self.eatsCapsuleFeature(position)
-        if "Delivery" in iterable:
-            features["Delivery"] = self.foodDeliveredFeature(index, position, state)
+        if "Delivery" in agent.getWeights():
+            features["Delivery"] = self.foodDeliveredFeature(agent.index, position, state)
         # Distance Features
-        if "Border" in iterable:
+        if "Border" in agent.getWeights():
             features["Border"] = self.borderDistanceFeature(position) / distScaleFactor
-        if "Food Dist" in iterable:
+        if "Food Dist" in agent.getWeights():
             features["Food Dist"] = self.foodDistanceFeature(position, state) / distScaleFactor
-        if "Trespass" in iterable:
+        if "Trespass" in agent.getWeights():
             pacmen, dists = [], []
             for enemy in self.enemyIndexes:
                 pacmen.append(state.getAgentState(enemy).isPacman)
@@ -688,32 +688,32 @@ class Hivemind:
             trespassers = [d for p, d in zip(pacmen, dists) if p == True]
             trespass = min(trespassers if len(trespassers) != 0 else dists)
             features["Trespass"] = trespass / distScaleFactor
-        if "Nearest Enemy Dist" in iterable:
+        if "Nearest Enemy Dist" in agent.getWeights():
             distances = []
             for enemy in self.enemyIndexes:
                 distances.append(self.enemyDistanceFeature(position, enemy))
             features["Nearest Enemy Dist"] = min(distances) / distScaleFactor
-        if "Enemy 0 Dist" in iterable:
+        if "Enemy 0 Dist" in agent.getWeights():
             features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0]) / distScaleFactor
-        if "Enemy 1 Dist" in iterable:
+        if "Enemy 1 Dist" in agent.getWeights():
             features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1]) / distScaleFactor
         # Misc Features
-        if "Score" in iterable:
-            features["Score"] = self.scoreFeature(index, position) / foodScaleFactor
-        if "Turns" in iterable:
+        if "Score" in agent.getWeights():
+            features["Score"] = self.scoreFeature(agent.index, position) / foodScaleFactor
+        if "Turns" in agent.getWeights():
             features["Turns"] = self.turnsRemainingFeature()
-        if "Carrying" in iterable:
-            features["Carrying"] = self.foodCarriedFeature(index, position, state) / foodScaleFactor
-        if "Return" in iterable:
-            features["Return"] = self.foodReturnFeature(index, position, state) / (foodScaleFactor * distScaleFactor)
-        if "Near Food" in iterable:
+        if "Carrying" in agent.getWeights():
+            features["Carrying"] = self.foodCarriedFeature(agent.index, position, state) / foodScaleFactor
+        if "Return" in agent.getWeights():
+            features["Return"] = self.foodReturnFeature(agent.index, position, state) / (foodScaleFactor * distScaleFactor)
+        if "Near Food" in agent.getWeights():
             features["Near Food"] = self.nearbyFoodFeature(position, state) / foodScaleFactor
-        if "Near Enemy" in iterable:
-            features["Near Enemy"] = self.enemiesOneAway(index, position, state) / enemiesScaleFactor
-        if "Kill" in iterable:
-            features["Kill"] = self.kill(index, position, state) / enemiesScaleFactor
-        if "Chased" in iterable:
-            features["Chased"] = self.beingChased(index, position, state)
+        if "Near Enemy" in agent.getWeights():
+            features["Near Enemy"] = self.enemiesOneAway(agent.index, position, state) / enemiesScaleFactor
+        if "Kill" in agent.getWeights():
+            features["Kill"] = self.kill(agent.index, position, state) / enemiesScaleFactor
+        if "Chased" in agent.getWeights():
+            features["Chased"] = self.beingChased(agent.index, position, state)
         return features
 
     """
@@ -1107,7 +1107,7 @@ class ApproximateQAgent(Agent):
         return state
 
     def getQValue(self, state, action):
-        return self.getWeights() * self.hivemind.getFeatures(state, action, self.index, self.getWeights())
+        return self.getWeights() * self.hivemind.getFeatures(state, action, self)
 
     def computeValueFromQValues(self, state):
         value = float("-inf")
@@ -1134,7 +1134,7 @@ class ApproximateQAgent(Agent):
         oldValue = self.getQValue(state, action)
         nextValue = self.computeValueFromQValues(nextState)
         difference = (reward + self.discount * nextValue) - oldValue
-        features = self.hivemind.getFeatures(state, action, self.index, self.getWeights())
+        features = self.hivemind.getFeatures(state, action, self)
         for feat in features:
             self.getWeights()[feat] += self.learningRate * difference * features[feat]
 
