@@ -1443,6 +1443,24 @@ class ReactiveAgent(ApproximateQAgent):
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Patrol"
 
+    def setPatrolTarget(self, state):
+        pos = state.getAgentPosition(self.index)
+        targets = self.hivemind.board.border.keys()
+        x = state.getWalls().width // 2
+        if self.hivemind.isRed:
+            x -= 1
+        targets = [target for target in targets if target[0] == x]
+        if self.target != None:
+            y = state.getWalls().height // 2
+            temp = []
+            if pos[1] >= y:
+                temp = [target for target in targets if target[1] < y]
+            else:
+                temp = [target for target in targets if target[1] >= y]
+            if len(temp) > 0:
+                targets = temp
+        self.target = random.choice(targets)
+
     def getWeights(self):
         if self.mode == None:
             return self.weights
@@ -1510,47 +1528,3 @@ class ReactiveAgent(ApproximateQAgent):
                 self.hivemind.enemyIndexes, self.hivemind.getBeliefDistributions()):
             reward -= 50.0
         return reward
-
-    def getAction(self, state):
-        if self.mode == "Patrol":
-            pos = state.getAgentPosition(self.index)
-            actions = Vectors.findNeigbours(pos[0], pos[1], state.getWalls())
-            values = []
-            for action in actions:
-                newPos = Vectors.newPosition(pos[0], pos[1], action)
-                if (self.hivemind.enemiesOneAway(self.index, pos, state) < 0.0 or
-                        self.hivemind.kill(self.index, pos, state) < 0.0):
-                    values.append(float("inf"))
-                else:
-                    values.append(self.hivemind.distancer.getDistance(self.target, newPos))
-            minValue = min(values)
-            bestActions = [a for a, v in zip(actions, values) if v == minValue]
-            action = random.choice(bestActions) if len(bestActions) > 0 else 'Stop'
-        else:
-            legalActions = state.getLegalActions(self.index)
-            if len(legalActions) > 0:
-                if util.flipCoin(self.explorationChance):
-                    action = random.choice(legalActions)
-                else:
-                    action = self.computeActionFromQValues(state)
-        self.lastState = state
-        self.lastAction = action
-        return action
-
-    def setPatrolTarget(self, state):
-        pos = state.getAgentPosition(self.index)
-        targets = self.hivemind.board.border.keys()
-        x = state.getWalls().width // 2
-        if self.hivemind.isRed:
-            x -= 1
-        targets = [target for target in targets if target[0] == x]
-        if self.target != None:
-            y = state.getWalls().height // 2
-            temp = []
-            if pos[1] >= y:
-                temp = [target for target in targets if target[1] < y]
-            else:
-                temp = [target for target in targets if target[1] >= y]
-            if len(temp) > 0:
-                targets = temp
-        self.target = random.choice(targets)
