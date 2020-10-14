@@ -1478,6 +1478,7 @@ class ReactiveAgent(ApproximateQAgent):
             return self.escape
 
     def printWeights(self):
+        print(f"Patrol: {self.patrol}")
         print(f"Hunt: {self.hunt}")
         print(f"Food: {self.food}")
         print(f"Escape: {self.escape}")
