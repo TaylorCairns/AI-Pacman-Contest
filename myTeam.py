@@ -1146,11 +1146,11 @@ class ApproximateQAgent(Agent):
         return self.getWeights() * self.hivemind.getFeatures(state, action, self)
 
     def computeValueFromQValues(self, state):
-        value = float("-inf")
+        value = float('-inf')
         actions = state.getLegalActions(self.index)
         if len(actions) > 0:
             value = max([self.getQValue(state, action) for action in actions])
-        return value if value != float("-inf") else 0.0
+        return value if value != float('-inf') else 0.0
 
     def computeActionFromQValues(self, state):
         bestActions = []
