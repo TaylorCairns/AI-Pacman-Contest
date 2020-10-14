@@ -1206,6 +1206,7 @@ class ApproximateQAgent(Agent):
         self.episodeRewards += deltaReward
         self.update(self.lastState, self.lastAction, state, deltaReward)
         self.target = None
+        self.mode = None
         self.stopEpisode()
 
         # Make sure we have this var
@@ -1357,38 +1358,44 @@ class AttackAgent(ApproximateQAgent):
         return reward if reward != 0.0 else -0.05
 
 class ReactiveAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
+    def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         self.mode = None
         self.target = None
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
         self.patrol = util.Counter()
-        self.patrol["Near Enemy"] = 1.0
-        self.patrol["Kill"] = 1.0
-        self.patrol["Dead End"] = -1.0
-        self.patrol["Target Position"] = -1.0
+        self.patrol["Near Enemy"] = 25.228237494374884
+        self.patrol["Kill"] = 81.90707086917499
+        self.patrol["Dead End"] = -0.0018593312535487988
+        self.patrol["Target Position"] = -20.54465886883537
+        self.patrol["Reached Destination"] = 48.73603703025319
+        # huntMode - hunts enemy pacman
+        self.hunt = util.Counter()
+        self.hunt["Near Enemy"] = 62.11452208507171
+        self.hunt["Kill"] = 204.9061119406704
+        self.hunt["Trespass"] = -42.72904929661665
         # recklessFood - greedy food grab
-        # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
         self.food = util.Counter()
         self.food["Near Enemy"] = 1.0
         self.food["Kill"] = 1.0
-        self.food["Grab Food"] = 1.0
-        self.food["Delivery"] = 1.0
-        self.food["Food Dist"] = -1.0
-        self.food["Nearest Enemy"] = 1.0
-        # huntMode - hunts enemy pacman
-        self.hunt = util.Counter()
-        self.hunt["Trespass"] = -1.0
-        self.hunt["Near Enemy"] = 1.0
-        self.hunt["Kill"] = 1.0
+        self.food["Grab Food"] = 10.368693116591242
+        self.food["Food Dist"] = -1.0259368679824907
+        # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
+        self.cautious = util.Counter()
+        self.cautious["Near Enemy"] = 1.0
+        self.cautious["Kill"] = 1.0
+        self.cautious["Dead End"] = -1.0
+        self.cautious["Grab Food"] = 10.368693116591242
+        self.cautious["Delivery"] = 4.593939474221539
+        self.cautious["Safe Food"] = -1.0
         # escapeMode - safely returns home
         self.escape = util.Counter()
-        self.escape["Near Enemy"] = 1.0
-        self.escape["Kill"] = 1.0
-        self.escape["Border"] = 1.0
-        self.escape["Home Side"] = 1.0
-        self.escape["Dead End"] = -1.0
+        self.escape["Near Enemy"] = 50.320711576952064
+        self.escape["Kill"] = 39.19443205086064
+        self.escape["Border"] = -0.7977620023984817
+        self.escape["Home Side"] = 8.728963709107736
+        self.escape["Dead End"] = -61.98615865902649
         # suicideMode - kills self asap
         self.suicide = util.Counter()
         self.suicide["Near Enemy"] = -1.0
@@ -1451,6 +1458,21 @@ class ReactiveAgent(ApproximateQAgent):
                 self.mode = "Suicide"
             elif self.hivemind.beingChased(self.index, agentPos, gameState) == 1.0:
                 self.mode = "Escape"
+            elif (self.hivemind.nearestEnemyFeature(agentPos) <
+                    self.hivemind.foodDistanceFeature(agentPos, gameState) * 2):
+                self.mode = "Cautious"
+            else:
+                for enemy in self.hivemind.enemyIndexes:
+                    if gameState.getAgentState(enemy).isPacman:
+                        self.mode = "Hunt"
+                        break
+        elif self.mode == "Cautious":
+            boardFeature = self.hivemind.board.positions[agentPos]
+            if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
+                    self.hivemind.getBeliefDistributions()):
+                self.mode = "Suicide"
+            elif self.hivemind.beingChased(self.index, agentPos, gameState) == 1.0:
+                self.mode = "Escape"
             else:
                 for enemy in self.hivemind.enemyIndexes:
                     if gameState.getAgentState(enemy).isPacman:
@@ -1482,13 +1504,15 @@ class ReactiveAgent(ApproximateQAgent):
         if self.mode == None:
             return self.weights
         elif self.mode == "Patrol":
-            return self.weights
+            return self.patrol
         elif self.mode == "Hunt":
             return self.hunt
         elif self.mode == "Suicide":
             return self.suicide
         elif self.mode == "Food":
             return self.food
+        elif self.mode == "Cautious":
+            return self.cautious
         elif self.mode == "Escape":
             return self.escape
 
@@ -1496,6 +1520,7 @@ class ReactiveAgent(ApproximateQAgent):
         print(f"Patrol: {self.patrol}")
         print(f"Hunt: {self.hunt}")
         print(f"Food: {self.food}")
+        print(f"Cautious: {self.cautious}")
         print(f"Escape: {self.escape}")
         print(f"Suicide: {self.suicide}")
 
@@ -1548,4 +1573,6 @@ class ReactiveAgent(ApproximateQAgent):
         # Patrol Destination Reached - Bonus if Patrolling
         if self.mode == "Patrol" and self.target == pos:
             reward += 5.0
+        if reward == 0.0:
+            reward = -0.5
         return reward
