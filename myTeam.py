@@ -690,6 +690,8 @@ class Hivemind:
             features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0]) / distScaleFactor
         if "Enemy 1 Dist" in agent.getWeights():
             features["Enemy 1 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[1]) / distScaleFactor
+        if "Target Position" in agent.getWeights():
+            features["Target Position"] = self.targetDistanceFeature(position, agent) / distScaleFactor
         # Misc Features
         if "Score" in agent.getWeights():
             features["Score"] = self.scoreFeature(agent.index, position) / foodScaleFactor
@@ -805,6 +807,7 @@ class Hivemind:
         distance = 0
         for pos in belief:
             distance += self.distancer.getDistance(position, pos) * belief[pos]
+        return distance
 
     def nearestEnemyFeature(self, position):
         distances = []
@@ -819,7 +822,9 @@ class Hivemind:
             dists.append(self.enemyDistanceFeature(position, enemy))
         trespassers = [d for p, d in zip(pacmen, dists) if p == True]
         return min(trespassers) if len(trespassers) != 0 else float('inf')
-    return distance
+
+    def targetDistanceFeature(self, position, agent):
+        return self.distancer.getDistance(position, agent.target)
     # Misc Features
     def scoreFeature(self, index, position):
         boardFeature = self.board.positions[position]
