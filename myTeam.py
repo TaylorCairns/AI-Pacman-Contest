@@ -677,11 +677,15 @@ class Hivemind:
             features["Delivery"] = self.foodDeliveredFeature(agent.index, position, state)
         if "Chased" in agent.getWeights():
             features["Chased"] = self.beingChased(agent.index, position, state)
+        if "Reached Destination" in agent.getWeights():
+            features["Reached Destination"] = self.destinationFeature(position, agent)
         # Distance Features
         if "Border" in agent.getWeights():
             features["Border"] = self.borderDistanceFeature(position) / distScaleFactor
         if "Food Dist" in agent.getWeights():
             features["Food Dist"] = self.foodDistanceFeature(position, state) / distScaleFactor
+        if "Safe Food" in agent.getWeights():
+            features["Safe Food"] = self.safeFoodFeature(position, state) / distScaleFactor
         if "Trespass" in agent.getWeights():
             features["Trespass"] = self.nearestTrespasserFeature(position, state) / distScaleFactor
         if "Nearest Enemy Dist" in agent.getWeights():
@@ -764,6 +768,9 @@ class Hivemind:
                 if distance <= lastDistance and distance < 6:
                     return 1.0
         return 0.0
+
+    def destinationFeature(self, position, agent):
+        return 1.0 if position == agent.target else 0.0
     # Distance Features
     def borderDistanceFeature(self, position):
         # Initialise search
@@ -802,6 +809,14 @@ class Hivemind:
             distances.append(self.distancer.getDistance(position, pos))
         return min(distances) if len(distances) > 0 else 0.0
 
+    def safeFoodFeature(self, position, state):
+        foodList = self.getEnemyFood(state).asList()
+        distances = []
+        for pos in foodList:
+            if not self.board.positions[pos].isDeadEnd():
+                distances.append(self.distancer.getDistance(position, pos))
+        return min(distances) if len(distances) > 0 else 0.0
+
     def enemyDistanceFeature(self, position, enemyIndex):
         belief = self.history[-1][1][enemyIndex]
         distance = 0
@@ -821,7 +836,7 @@ class Hivemind:
             pacmen.append(state.getAgentState(enemy).isPacman)
             dists.append(self.enemyDistanceFeature(position, enemy))
         trespassers = [d for p, d in zip(pacmen, dists) if p == True]
-        return min(trespassers) if len(trespassers) != 0 else float('inf')
+        return min(trespassers) if len(trespassers) != 0 else 0.0
 
     def targetDistanceFeature(self, position, agent):
         return self.distancer.getDistance(position, agent.target)
