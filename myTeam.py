@@ -1576,3 +1576,92 @@ class ReactiveAgent(ApproximateQAgent):
         if reward == 0.0:
             reward = -0.5
         return reward
+
+class SuicideAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        self.weights["Near Enemy"] = -1.0
+        self.weights["Kill"] = -1.0
+        self.weights["Nearest Enemy"] = -1.0
+
+    def rewardFunction(self, gameState, isFinal=False):
+        reward = 0.0
+        pos = gameState.getAgentPosition(self.index)
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y, self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if pos != lastPos:
+            # Died
+            reward += 100.0
+        if reward == 0.0:
+            reward -= 1.0
+        return reward
+
+class PatrolAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        self.weights["Near Enemy"] = 25.228237494374884
+        self.weights["Kill"] =  81.90707086917499
+        self.weights["Dead End"] = 0.0018593312535487988
+        self.weights["Target Position"] = -20.54465886883537
+        self.weights["Reached Destination"] = 48.73603703025319
+        self.mode = "Patrol"
+
+    def rewardFunction(self, gameState, isFinal=False):
+        reward = 0.0
+        pos = gameState.getAgentPosition(self.index)
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y, self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if pos != lastPos:
+            # Died - Penalty unless Suicide
+            reward -= 50.0
+        elif lastPos in lastEnemyPos:
+            # Killed enemy - Bonus if Hunt/Patrol
+            reward += 50.0
+        # Score Loss - Penalty if Hunt or Patrol
+        scoreChange = gameState.getScore() - self.lastState.getScore()
+        if not self.hivemind.isRed:
+            scoreChange *= -1.0
+        reward += min(0.0, scoreChange) * 100.0
+        # Trapped - Penalty unless Suicide or Hunt
+        boardFeature = self.hivemind.board.positions[pos]
+        if boardFeature.trapped(pos,
+                self.hivemind.enemyIndexes, self.hivemind.getBeliefDistributions()):
+            reward -= 25.0
+        # Patrol Destination Reached - Bonus if Patrolling
+        if self.target == pos:
+            reward += 5.0
+        if reward == 0.0:
+            reward -= 0.5
+        return reward
+
+    def setMode(self, gameState):
+        agentPos = gameState.getAgentPosition(self.index)
+        # if self.target != None:
+        #     print(f"{self.hivemind.distancer.getDistance(agentPos, self.target)} {self.weights}")
+        if self.target == agentPos or self.target == None:
+            self.setPatrolTarget(gameState)
+
+    def setPatrolTarget(self, state):
+        # print("setting Patrol Target")
+        pos = state.getAgentPosition(self.index)
+        targets = self.hivemind.board.border.keys()
+        x = state.getWalls().width // 2
+        if self.hivemind.isRed:
+            x -= 1
+        targets = [target for target in targets if target[0] == x]
+        if self.target != None:
+            y = state.getWalls().height // 2
+            temp = []
+            if pos[1] >= y:
+                temp = [target for target in targets if target[1] < y]
+            else:
+                temp = [target for target in targets if target[1] >= y]
+            if len(temp) > 0:
+                targets = temp
+        self.target = random.choice(targets)
