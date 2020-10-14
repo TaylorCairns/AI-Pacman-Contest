@@ -1364,6 +1364,7 @@ class ReactiveAgent(ApproximateQAgent):
         self.escape["Kill"] = 1.0
         self.escape["Border"] = 1.0
         self.escape["Home Side"] = 1.0
+        self.escape["Dead End"] = -1.0
         # suicideMode - kills self asap
         self.suicide = util.Counter()
         self.suicide["Near Enemy"] = -1.0
