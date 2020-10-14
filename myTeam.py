@@ -681,18 +681,9 @@ class Hivemind:
         if "Food Dist" in agent.getWeights():
             features["Food Dist"] = self.foodDistanceFeature(position, state) / distScaleFactor
         if "Trespass" in agent.getWeights():
-            pacmen, dists = [], []
-            for enemy in self.enemyIndexes:
-                pacmen.append(state.getAgentState(enemy).isPacman)
-                dists.append(self.enemyDistanceFeature(position, enemy))
-            trespassers = [d for p, d in zip(pacmen, dists) if p == True]
-            trespass = min(trespassers if len(trespassers) != 0 else dists)
-            features["Trespass"] = trespass / distScaleFactor
+            features["Trespass"] = self.nearestTrespasserFeature(self, position) / distScaleFactor
         if "Nearest Enemy Dist" in agent.getWeights():
-            distances = []
-            for enemy in self.enemyIndexes:
-                distances.append(self.enemyDistanceFeature(position, enemy))
-            features["Nearest Enemy Dist"] = min(distances) / distScaleFactor
+            features["Nearest Enemy Dist"] = self.nearestEnemyFeature(position) / distScaleFactor
         if "Enemy 0 Dist" in agent.getWeights():
             features["Enemy 0 Dist"] = self.enemyDistanceFeature(position, self.enemyIndexes[0]) / distScaleFactor
         if "Enemy 1 Dist" in agent.getWeights():
@@ -877,6 +868,13 @@ class Hivemind:
             distances.append(self.enemyDistanceFeature(position, enemy))
         return min(distances)
 
+    def nearestTrespasserFeature(self, position):
+        pacmen, dists = [], []
+        for enemy in self.enemyIndexes:
+            pacmen.append(state.getAgentState(enemy).isPacman)
+            dists.append(self.enemyDistanceFeature(position, enemy))
+        trespassers = [d for p, d in zip(pacmen, dists) if p == True]
+        return min(trespassers) if len(trespassers) != 0 else float('inf')
 
 
 
