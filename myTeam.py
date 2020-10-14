@@ -675,6 +675,8 @@ class Hivemind:
             features["Capsule"] = self.eatsCapsuleFeature(position)
         if "Delivery" in agent.getWeights():
             features["Delivery"] = self.foodDeliveredFeature(agent.index, position, state)
+        if "Chased" in agent.getWeights():
+            features["Chased"] = self.beingChased(agent.index, position, state)
         # Distance Features
         if "Border" in agent.getWeights():
             features["Border"] = self.borderDistanceFeature(position) / distScaleFactor
@@ -703,13 +705,12 @@ class Hivemind:
             features["Near Enemy"] = self.enemiesOneAway(agent.index, position, state) / enemiesScaleFactor
         if "Kill" in agent.getWeights():
             features["Kill"] = self.kill(agent.index, position, state) / enemiesScaleFactor
-        if "Chased" in agent.getWeights():
-            features["Chased"] = self.beingChased(agent.index, position, state)
         return features
 
     """
     Feature Extractors
     """
+    # Boolean Features
     def onEdgeFeature(self, position):
         return 1.0 if not self.board.positions[position].isNode else 0.0
 
@@ -746,6 +747,22 @@ class Hivemind:
             return 1.0
         return 0.0
 
+    def beingChased(self, index, position, state):
+        for enemy in self.enemyIndexes:
+            enemyPos = state.getAgentPosition(enemy)
+            if enemyPos != None:
+                lastBelief = self.history[-3][1][enemy]
+                lastDistance = 0
+                for pos in lastBelief:
+                    lastDistance += self.distancer.getDistance(position, pos) * lastBelief[pos]
+                belief = self.history[-1][1][enemy]
+                distance = 0
+                for pos in belief:
+                    distance += self.distancer.getDistance(position, pos) * belief[pos]
+                if distance <= lastDistance and distance < 6:
+                    return 1.0
+        return 0.0
+    # Distance Features
     def borderDistanceFeature(self, position):
         # Initialise search
         fringe = util.PriorityQueue()
@@ -788,8 +805,22 @@ class Hivemind:
         distance = 0
         for pos in belief:
             distance += self.distancer.getDistance(position, pos) * belief[pos]
-        return distance
 
+    def nearestEnemyFeature(self, position):
+        distances = []
+        for enemy in self.enemyIndexes:
+            distances.append(self.enemyDistanceFeature(position, enemy))
+        return min(distances)
+
+    def nearestTrespasserFeature(self, position):
+        pacmen, dists = [], []
+        for enemy in self.enemyIndexes:
+            pacmen.append(state.getAgentState(enemy).isPacman)
+            dists.append(self.enemyDistanceFeature(position, enemy))
+        trespassers = [d for p, d in zip(pacmen, dists) if p == True]
+        return min(trespassers) if len(trespassers) != 0 else float('inf')
+    return distance
+    # Misc Features
     def scoreFeature(self, index, position):
         boardFeature = self.board.positions[position]
         gameState = self.history[-1][0]
@@ -845,39 +876,6 @@ class Hivemind:
                 else:
                     killValue -= 1.0
         return killValue
-
-    def beingChased(self, index, position, state):
-        for enemy in self.enemyIndexes:
-            enemyPos = state.getAgentPosition(enemy)
-            if enemyPos != None:
-                lastBelief = self.history[-3][1][enemy]
-                lastDistance = 0
-                for pos in lastBelief:
-                    lastDistance += self.distancer.getDistance(position, pos) * lastBelief[pos]
-                belief = self.history[-1][1][enemy]
-                distance = 0
-                for pos in belief:
-                    distance += self.distancer.getDistance(position, pos) * belief[pos]
-                if distance <= lastDistance and distance < 6:
-                    return 1.0
-        return 0.0
-
-    def nearestEnemyFeature(self, position):
-        distances = []
-        for enemy in self.enemyIndexes:
-            distances.append(self.enemyDistanceFeature(position, enemy))
-        return min(distances)
-
-    def nearestTrespasserFeature(self, position):
-        pacmen, dists = [], []
-        for enemy in self.enemyIndexes:
-            pacmen.append(state.getAgentState(enemy).isPacman)
-            dists.append(self.enemyDistanceFeature(position, enemy))
-        trespassers = [d for p, d in zip(pacmen, dists) if p == True]
-        return min(trespassers) if len(trespassers) != 0 else float('inf')
-
-
-
 
 #################
 # Team creation #
