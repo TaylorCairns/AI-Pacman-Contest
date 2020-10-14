@@ -1095,6 +1095,7 @@ class ApproximateQAgent(Agent):
           self.display = __main__._display
         self.hivemind.registerInitialState(self.index, state)
         self.observationHistory.append(state)
+        self.setMode(state)
 
     def observationFunction(self, gameState):
         state = gameState.makeObservation(self.index)
@@ -1342,8 +1343,8 @@ class ReactiveAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         # patrolMode - patrols border
-        self.mode = "Patrol"
-        self.patrol = None
+        self.mode = None
+        self.target = None
         self.weights["Bias"] = 0.0
         # recklessFood - greedy food grab
         # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
@@ -1391,6 +1392,7 @@ class ReactiveAgent(ApproximateQAgent):
         agentState = gameState.getAgentState(self.index)
         if self.mode == None:
             self.mode = "Patrol"
+            self.setPatrolTarget(gameState)
         elif self.mode == "Patrol":
             enemies = []
             for enemy in self.hivemind.enemyIndexes:
@@ -1402,6 +1404,8 @@ class ReactiveAgent(ApproximateQAgent):
                 enemyDist = self.hivemind.nearestEnemyFeature(agentPos)
                 if foodDist*2 < enemyDist:
                     self.mode = "Food"
+                elif self.target == agentPos:
+                    self.setPatrolTarget(gameState)
         elif self.mode == "Hunt":
             enemies = []
             for enemy in self.hivemind.enemyIndexes:
@@ -1503,27 +1507,8 @@ class ReactiveAgent(ApproximateQAgent):
         return reward
 
     def getAction(self, state):
-        if self.mode == None:
-            self.setMode(state)
-        action = None
         if self.mode == "Patrol":
             pos = state.getAgentPosition(self.index)
-            if self.patrol == pos or self.patrol == None:
-                targets = self.hivemind.board.border.keys()
-                x = state.getWalls().width // 2
-                if self.hivemind.isRed:
-                    x -= 1
-                targets = [target for target in targets if target[0] == x]
-                if self.patrol != None:
-                    y = state.getWalls().height // 2
-                    temp = []
-                    if pos[1] >= y:
-                        temp = [target for target in targets if target[1] < y]
-                    else:
-                        temp = [target for target in targets if target[1] >= y]
-                    if len(temp) > 0:
-                        targets = temp
-                self.patrol = random.choice(targets)
             actions = Vectors.findNeigbours(pos[0], pos[1], state.getWalls())
             values = []
             for action in actions:
@@ -1532,7 +1517,7 @@ class ReactiveAgent(ApproximateQAgent):
                         self.hivemind.kill(self.index, pos, state) < 0.0):
                     values.append(float("inf"))
                 else:
-                    values.append(self.hivemind.distancer.getDistance(self.patrol, newPos))
+                    values.append(self.hivemind.distancer.getDistance(self.target, newPos))
             minValue = min(values)
             bestActions = [a for a, v in zip(actions, values) if v == minValue]
             action = random.choice(bestActions) if len(bestActions) > 0 else 'Stop'
@@ -1546,3 +1531,21 @@ class ReactiveAgent(ApproximateQAgent):
         self.lastState = state
         self.lastAction = action
         return action
+
+    def setPatrolTarget(self, state):
+        pos = state.getAgentPosition(self.index)
+        targets = self.hivemind.board.border.keys()
+        x = state.getWalls().width // 2
+        if self.hivemind.isRed:
+            x -= 1
+        targets = [target for target in targets if target[0] == x]
+        if self.target != None:
+            y = state.getWalls().height // 2
+            temp = []
+            if pos[1] >= y:
+                temp = [target for target in targets if target[1] < y]
+            else:
+                temp = [target for target in targets if target[1] >= y]
+            if len(temp) > 0:
+                targets = temp
+        self.target = random.choice(targets)
