@@ -915,13 +915,60 @@ class Hivemind:
                     killValue -= 1.0
         return killValue
 
+    """
+        Reward Functions
+    """
+    def diedReward(self, agent, state, final=False):
+        x, y = agent.lastState.getAgentPosition(agent.index)
+        expected = Vectors.newPosition(x, y, agent.lastAction)
+        actual = state.getAgentPosition(agent.index)
+        return 0.0 if actual == expected else -100.0
+
+    def killedReward(self, agent, state, final=False):
+        x, y = agent.lastState.getAgentPosition(agent.index)
+        expected = Vectors.newPosition(x, y, agent.lastAction)
+        enemyPos = [agent.lastState.getAgentPosition(enemy) for enemy in self.enemyIndexes]
+        return 0.0 if expected not in enemyPos else 100.0
+
+    def scoreChangeReward(self, agent, state, final=False):
+        scoreChange = state.getScore() - agent.lastState.getScore()
+        if not self.isRed:
+            scoreChange *= -1.0
+        return scoreChange * 10.0
+
+    def carriedChangeReward(self, agent, state, final=False):
+        carryDiff = float(state.getAgentState(agent.index).numCarrying -
+                agent.lastState.getAgentState(agent.index).numCarrying)
+        return carryDiff * 5.0
+
+    def returnedChangeReward(self, agent, state, final=False):
+        returnedDiff = float(state.getAgentState(agent.index).numReturned -
+                agent.lastState.getAgentState(agent.index).numReturned)
+        return returnedDiff * 10.0
+
+    def eatCapsuleReward(self, agent, state, final=False):
+        x, y = agent.lastState.getAgentPosition(agent.index)
+        expected = Vectors.newPosition(x, y, agent.lastAction)
+        return self.eatsCapsuleFeature(expected, agent.lastState) * 10.0
+
+    def trappedReward(self, agent, state, final=False):
+        actual = state.getAgentPosition(agent.index)
+        boardFeature = self.board.positions[actual]
+        if boardFeature.trapped(pos, self.enemyIndexes, self.getBeliefDistributions()):
+            return -50.0
+        else:
+            return 0.0
+
+    def destinationReward(self, agent, state, isFinal=False):
+        actual = state.getAgentPosition(agent.index)
+        return 0.0 agent.target != actual else 5.0
+
 #################
 # Team creation #
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'AttackAgent', second = 'HunterAgent', **kwargs):
-  print(f"create Team {kwargs}")
+               first = 'CautiousAgent', second = 'HunterAgent', **kwargs):
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs),
         eval(second)(secondIndex, hivemind, **kwargs)]
