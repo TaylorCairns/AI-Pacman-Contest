@@ -1568,20 +1568,6 @@ class ReactiveAgent(ApproximateQAgent):
             reward -= self.hivemind.diedReward(self, gameState, final)
         return reward if reward != 0.0 else -0.5
 
-class HunterAgent(ApproximateQAgent):
-    def __init__(self, *args, **kwargs):
-        ApproximateQAgent.__init__(self, *args, **kwargs)
-        self.weights["Trespass"] = -43.52709827983609
-        self.weights["Near Enemy"] = 113.58509702452676
-        self.weights["Kill"] = 195.97367809099194
-
-    def rewardFunction(self, gameState, final=False):
-        reward = 0.0
-        reward += self.hivemind.diedReward(self, gameState, final)
-        reward += self.hivemind.killedReward(self, gameState, final)
-        reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
-        return reward if reward != 0.0 else -0.5
-
 class AttackAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
@@ -1609,30 +1595,64 @@ class SuicideAgent(ApproximateQAgent):
         reward = -self.hivemind.diedReward(self, gameState, final)
         return reward if reward != 0.0 else -0.5
 
-class PatrolAgent(ApproximateQAgent):
+class GuardAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
-        ApproximateQAgent.__init__(self, *args, **kwargs)
-        self.weights["Near Enemy"] = 25.228237494374884
-        self.weights["Kill"] =  81.90707086917499
-        self.weights["Dead End"] = 0.0018593312535487988
-        self.weights["Target Position"] = -20.54465886883537
-        self.weights["Reached Destination"] = 48.73603703025319
-        self.mode = "Patrol"
+        ApproximateQAgent.__init__(self, *args, **kwargs)self.mode = None
+        self.target = None
+        self.weights["Bias"] = 0.0
+        # patrolMode - patrols border
+        self.patrol = util.Counter()
+        self.patrol["Near Enemy"] = 25.228237494374884
+        self.patrol["Kill"] = 81.90707086917499
+        self.patrol["Dead End"] = -0.0018593312535487988
+        self.patrol["Target Position"] = -20.54465886883537
+        self.patrol["Reached Destination"] = 48.73603703025319
+        # huntMode - hunts enemy pacman
+        self.hunt = util.Counter()
+        self.hunt["Near Enemy"] = 62.11452208507171
+        self.hunt["Kill"] = 204.9061119406704
+        self.hunt["Trespass"] = -42.72904929661665
 
-    def rewardFunction(self, gameState, final=False):
-        reward = 0.0
-        reward += self.hivemind.diedReward(self, gameState, final)
-        reward += self.hivemind.trappedReward(self, gameState, final)
-        reward += self.hivemind.destinationReward(self, gameState, final)
-        reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
+    def getWeights(self):
+        if self.mode == None:
+            return self.weights
+        elif self.mode == "Patrol":
+            return self.patrol
+        elif self.mode == "Hunt":
+            return self.hunt
+
+    def rewardFunction(self, gameState, final=False):reward = 0.0
+        if self.mode == "Patrol":
+            reward += self.hivemind.diedReward(self, gameState, final)
+            reward += self.hivemind.trappedReward(self, gameState, final)
+            reward += self.hivemind.destinationReward(self, gameState, final)
+            reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
+        elif self.mode == "Hunt":
+            reward += self.hivemind.diedReward(self, gameState, final)
+            reward += self.hivemind.killedReward(self, gameState, final)
+            reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
         return reward if reward != 0.0 else -0.5
 
     def setMode(self, gameState):
         agentPos = gameState.getAgentPosition(self.index)
-        # if self.target != None:
-        #     print(f"{self.hivemind.distancer.getDistance(agentPos, self.target)} {self.weights}")
-        if self.target == agentPos or self.target == None:
+        agentState = gameState.getAgentState(self.index)
+        if self.mode == None:
+            self.mode = "Patrol"
             self.setPatrolTarget(gameState)
+        elif self.mode == "Patrol":
+            enemies = []
+            for enemy in self.hivemind.enemyIndexes:
+                enemies.append(gameState.getAgentState(enemy).isPacman)
+            if any(enemies):
+                self.mode = "Hunt"
+            elif self.target == agentPos:
+                self.setPatrolTarget(gameState)
+        elif self.mode == "Hunt":
+            enemies = []
+            for enemy in self.hivemind.enemyIndexes:
+                enemies.append(gameState.getAgentState(enemy).isPacman)
+            if not any(enemies):
+                self.mode = "Patrol"
 
     def setPatrolTarget(self, state):
         # print("setting Patrol Target")
