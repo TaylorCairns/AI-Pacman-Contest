@@ -672,7 +672,7 @@ class Hivemind:
         if "Grab Food" in agent.getWeights():
             features["Grab Food"] = self.eatsFoodFeature(agent.index,  position, state)
         if "Capsule" in agent.getWeights():
-            features["Capsule"] = self.eatsCapsuleFeature(position)
+            features["Capsule"] = self.eatsCapsuleFeature(position, state)
         if "Delivery" in agent.getWeights():
             features["Delivery"] = self.foodDeliveredFeature(agent.index, position, state)
         if "Chased" in agent.getWeights():
@@ -739,12 +739,12 @@ class Hivemind:
         else:
             return 0.0
 
-    def eatsCapsuleFeature(self, position):
+    def eatsCapsuleFeature(self, position, state):
         capsules = None
         if self.isRed:
-            capsules = self.history[-1][0].getBlueCapsules()
+            capsules = state.getBlueCapsules()
         else:
-            capsules = self.history[-1][0].getRedCapsules()
+            capsules = state.getRedCapsules()
         return 1.0 if position in capsules else 0.0
 
     def foodDeliveredFeature(self, index, position, state):
