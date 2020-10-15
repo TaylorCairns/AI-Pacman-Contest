@@ -1321,60 +1321,6 @@ class AllFeaturesAgent(ApproximateQAgent):
         weights["Chased"] = 1.0
         self.weights = weights
 
-class HunterAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
-        ApproximateQAgent.__init__(self, *args, **kwargs)
-        self.weights["Trespass"] = -43.52709827983609
-        self.weights["Near Enemy"] = 113.58509702452676
-        self.weights["Kill"] = 195.97367809099194
-
-    def rewardFunction(self, gameState, isFinal=False):
-        scoreChange = gameState.getScore() - self.lastState.getScore()
-        if not self.hivemind.isRed:
-            scoreChange *= -1.0
-        reward = min(0.0, scoreChange) * 100.0
-        x, y = self.lastState.getAgentPosition(self.index)
-        lastPos = Vectors.newPosition(x, y,
-                self.lastAction)
-        lastEnemyPos = []
-        for enemy in self.hivemind.enemyIndexes:
-            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
-        if gameState.getAgentPosition(self.index) != lastPos:
-            reward -= 100.0
-        elif lastPos in lastEnemyPos:
-            reward += 100.0
-        return reward if reward != 0.0 else 1.0
-
-class AttackAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
-        ApproximateQAgent.__init__(self, *args, **kwargs)
-        self.weights["Near Enemy"] = 42.88718091048829
-        self.weights["Kill"] = 38.7956831767021
-        self.weights["Grab Food"] = 5.71864804146864
-        self.weights["Delivery"] = 25.73787094094885
-        self.weights["Food Dist"] = -3.263353405110272
-        self.weights["Trespass"] = -0.6578892848291951
-
-    def rewardFunction(self, gameState, isFinal=False):
-        carryDiff = float(gameState.getAgentState(self.index).numCarrying -
-                self.lastState.getAgentState(self.index).numCarrying)
-        returnDiff = float(gameState.getAgentState(self.index).numReturned -
-                self.lastState.getAgentState(self.index).numReturned)
-        reward = (returnDiff + carryDiff / 2.0) * 10.0
-        x, y = self.lastState.getAgentPosition(self.index)
-        lastPos = Vectors.newPosition(x, y,
-                self.lastAction)
-        lastEnemyPos = []
-        for enemy in self.hivemind.enemyIndexes:
-            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
-        if gameState.getAgentPosition(self.index) != lastPos:
-            reward -= 5.0
-        elif lastPos in lastEnemyPos:
-            reward += 5.0
-        if isFinal:
-            reward -= gameState.getAgentState(self.index).numCarrying * 5.0
-        return reward if reward != 0.0 else -0.05
-
 class ReactiveAgent(ApproximateQAgent):
     def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
@@ -1594,6 +1540,60 @@ class ReactiveAgent(ApproximateQAgent):
         if reward == 0.0:
             reward = -0.5
         return reward
+
+class HunterAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        self.weights["Trespass"] = -43.52709827983609
+        self.weights["Near Enemy"] = 113.58509702452676
+        self.weights["Kill"] = 195.97367809099194
+
+    def rewardFunction(self, gameState, isFinal=False):
+        scoreChange = gameState.getScore() - self.lastState.getScore()
+        if not self.hivemind.isRed:
+            scoreChange *= -1.0
+        reward = min(0.0, scoreChange) * 100.0
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y,
+                self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if gameState.getAgentPosition(self.index) != lastPos:
+            reward -= 100.0
+        elif lastPos in lastEnemyPos:
+            reward += 100.0
+        return reward if reward != 0.0 else 1.0
+
+class AttackAgent(ApproximateQAgent):
+    def __init__(self, *args, gamma=0.99, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        self.weights["Near Enemy"] = 42.88718091048829
+        self.weights["Kill"] = 38.7956831767021
+        self.weights["Grab Food"] = 5.71864804146864
+        self.weights["Delivery"] = 25.73787094094885
+        self.weights["Food Dist"] = -3.263353405110272
+        self.weights["Trespass"] = -0.6578892848291951
+
+    def rewardFunction(self, gameState, isFinal=False):
+        carryDiff = float(gameState.getAgentState(self.index).numCarrying -
+                self.lastState.getAgentState(self.index).numCarrying)
+        returnDiff = float(gameState.getAgentState(self.index).numReturned -
+                self.lastState.getAgentState(self.index).numReturned)
+        reward = (returnDiff + carryDiff / 2.0) * 10.0
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y,
+                self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if gameState.getAgentPosition(self.index) != lastPos:
+            reward -= 5.0
+        elif lastPos in lastEnemyPos:
+            reward += 5.0
+        if isFinal:
+            reward -= gameState.getAgentState(self.index).numCarrying * 5.0
+        return reward if reward != 0.0 else -0.05
 
 class SuicideAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
