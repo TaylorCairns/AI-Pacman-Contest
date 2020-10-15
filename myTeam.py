@@ -1364,7 +1364,7 @@ class ReactiveAgent(ApproximateQAgent):
         self.suicide = util.Counter()
         self.suicide["Near Enemy"] = -1.0
         self.suicide["Kill"] = -1.0
-        self.suicide["Nearest Enemy"] = -1.0
+        self.suicide["Nearest Threat"] = -1.0
 
     """
         Mode triggers
