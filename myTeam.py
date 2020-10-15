@@ -1597,7 +1597,8 @@ class SuicideAgent(ApproximateQAgent):
 
 class GuardAgent(ApproximateQAgent):
     def __init__(self, *args, gamma=0.99, **kwargs):
-        ApproximateQAgent.__init__(self, *args, **kwargs)self.mode = None
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        self.mode = None
         self.target = None
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
@@ -1621,7 +1622,8 @@ class GuardAgent(ApproximateQAgent):
         elif self.mode == "Hunt":
             return self.hunt
 
-    def rewardFunction(self, gameState, final=False):reward = 0.0
+    def rewardFunction(self, gameState, final=False):
+        reward = 0.0
         if self.mode == "Patrol":
             reward += self.hivemind.diedReward(self, gameState, final)
             reward += self.hivemind.trappedReward(self, gameState, final)
