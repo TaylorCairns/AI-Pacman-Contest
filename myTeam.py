@@ -937,9 +937,12 @@ class Hivemind:
         return scoreChange * 10.0
 
     def carriedChangeReward(self, agent, state, final=False):
-        carryDiff = float(state.getAgentState(agent.index).numCarrying -
-                agent.lastState.getAgentState(agent.index).numCarrying)
-        return carryDiff * 5.0
+        if final:
+            return -state.getAgentState(agent.index).numCarrying * 5.0
+        else:
+            carryDiff = float(state.getAgentState(agent.index).numCarrying -
+                    agent.lastState.getAgentState(agent.index).numCarrying)
+            return carryDiff * 5.0
 
     def returnedChangeReward(self, agent, state, final=False):
         returnedDiff = float(state.getAgentState(agent.index).numReturned -
