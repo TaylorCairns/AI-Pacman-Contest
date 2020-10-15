@@ -957,14 +957,14 @@ class Hivemind:
     def trappedReward(self, agent, state, final=False):
         actual = state.getAgentPosition(agent.index)
         boardFeature = self.board.positions[actual]
-        if boardFeature.trapped(pos, self.enemyIndexes, self.getBeliefDistributions()):
+        if boardFeature.trapped(actual, self.enemyIndexes, self.getBeliefDistributions()):
             return -50.0
         else:
             return 0.0
 
     def destinationReward(self, agent, state, isFinal=False):
         actual = state.getAgentPosition(agent.index)
-        return 0.0 agent.target != actual else 5.0
+        return 0.0 if agent.target != actual else 5.0
 
 #################
 # Team creation #
@@ -1542,7 +1542,6 @@ class ReactiveAgent(ApproximateQAgent):
         reward = 0.0
         if self.mode == "Patrol":
             reward += self.hivemind.diedReward(self, gameState, final)
-            reward += self.hivemind.killedReward(self, gameState, final)
             reward += self.hivemind.trappedReward(self, gameState, final)
             reward += self.hivemind.destinationReward(self, gameState, final)
             reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
@@ -1552,18 +1551,15 @@ class ReactiveAgent(ApproximateQAgent):
             reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
         elif self.mode == "Food":
             reward += self.hivemind.diedReward(self, gameState, final)
-            reward += self.hivemind.killedReward(self, gameState, final)
             reward += max(0.0, self.hivemind.carriedChangeReward(self, gameState, final))
         elif self.mode == "Cautious":
             reward += self.hivemind.diedReward(self, gameState, final)
-            reward += self.hivemind.killedReward(self, gameState, final)
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
             reward += self.hivemind.carriedChangeReward(self, gameState, final)
             reward += self.hivemind.returnedChangeReward(self, gameState, final)
             reward += self.hivemind.trappedReward(self, gameState, final)
         elif self.mode == "Escape":
             reward += self.hivemind.diedReward(self, gameState, final)
-            reward += self.hivemind.killedReward(self, gameState, final)
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
             reward += min(0.0, self.hivemind.carriedChangeReward(self, gameState, final))
             reward += self.hivemind.returnedChangeReward(self, gameState, final)
@@ -1599,7 +1595,6 @@ class AttackAgent(ApproximateQAgent):
     def rewardFunction(self, gameState, final=False):
         reward = 0.0
         reward += self.hivemind.diedReward(self, gameState, final)
-        reward += self.hivemind.killedReward(self, gameState, final)
         reward += max(0.0, self.hivemind.carriedChangeReward(self, gameState, final))
         return reward if reward != 0.0 else -0.5
 
@@ -1627,7 +1622,6 @@ class PatrolAgent(ApproximateQAgent):
     def rewardFunction(self, gameState, final=False):
         reward = 0.0
         reward += self.hivemind.diedReward(self, gameState, final)
-        reward += self.hivemind.killedReward(self, gameState, final)
         reward += self.hivemind.trappedReward(self, gameState, final)
         reward += self.hivemind.destinationReward(self, gameState, final)
         reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
@@ -1732,16 +1726,14 @@ class CautiousAgent(ApproximateQAgent):
 
     def rewardFunction(self, gameState, final=False):
         reward = 0.0
-        elif self.mode == "Cautious":
+        if self.mode == "Cautious":
             reward += self.hivemind.diedReward(self, gameState, final)
-            reward += self.hivemind.killedReward(self, gameState, final)
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
             reward += self.hivemind.carriedChangeReward(self, gameState, final)
             reward += self.hivemind.returnedChangeReward(self, gameState, final)
             reward += self.hivemind.trappedReward(self, gameState, final)
         elif self.mode == "Escape":
             reward += self.hivemind.diedReward(self, gameState, final)
-            reward += self.hivemind.killedReward(self, gameState, final)
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
             reward += min(0.0, self.hivemind.carriedChangeReward(self, gameState, final))
             reward += self.hivemind.returnedChangeReward(self, gameState, final)
