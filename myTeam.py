@@ -1683,3 +1683,120 @@ class PatrolAgent(ApproximateQAgent):
             if len(temp) > 0:
                 targets = temp
         self.target = random.choice(targets)
+
+class CautiousAgent(ApproximateQAgent):
+    def __init__(self, *args, **kwargs):
+        ApproximateQAgent.__init__(self, *args, **kwargs)
+        self.mode = None
+        self.target = None
+        self.weights["Bias"] = 0.0
+        # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
+        self.cautious = util.Counter()
+        self.cautious["Near Enemy"] = 1.0
+        self.cautious["Kill"] = 1.0
+        self.cautious["Dead End"] = -1.0
+        self.cautious["Grab Food"] = 10.368693116591242
+        self.cautious["Delivery"] = 4.593939474221539
+        self.cautious["Capsule"] = 1.0
+        self.cautious["Safe Food"] = -1.0
+        # escapeMode - safely returns home
+        self.escape = util.Counter()
+        self.escape["Near Enemy"] = 50.320711576952064
+        self.escape["Kill"] = 39.19443205086064
+        self.escape["Capsule"] = 1.0
+        self.escape["Home Side"] = 8.728963709107736
+        self.escape["Dead End"] = -61.98615865902649
+        self.escape["Border"] = -0.7977620023984817
+        # suicideMode - kills self asap
+        self.suicide = util.Counter()
+        self.suicide["Near Enemy"] = -1.0
+        self.suicide["Kill"] = -1.0
+        self.suicide["Nearest Threat"] = -1.0
+
+    """
+        Mode triggers
+        start - Cautious
+        suicideMode - at spawn - Cautious
+        cautiousFood - chased - escapeMode
+        cautiousFood/escapeMode - trapped - suicideMode
+        escapeMode - returned home - Cautious
+    """
+    def setMode(self, gameState):
+        agentPos = gameState.getAgentPosition(self.index)
+        agentState = gameState.getAgentState(self.index)
+        if self.mode == None:
+            self.mode = "Cautious"
+        elif self.mode == "Suicide":
+            if agentPos == agentState.start.pos:
+                self.mode = "Cautious"
+        elif self.mode == "Cautious":
+            boardFeature = self.hivemind.board.positions[agentPos]
+            if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
+                    self.hivemind.getBeliefDistributions()):
+                self.mode = "Suicide"
+            elif self.hivemind.beingChased(self.index, agentPos, gameState) == 1.0:
+                self.mode = "Escape"
+        elif self.mode == "Escape":
+            if self.hivemind.homeSideFeature(agentPos) == 1.0:
+                self.mode = "Cautious"
+
+    def getWeights(self):
+        if self.mode == None:
+            return self.weights
+        elif self.mode == "Suicide":
+            return self.suicide
+        elif self.mode == "Cautious":
+            return self.cautious
+        elif self.mode == "Escape":
+            return self.escape
+
+    def printWeights(self):
+        print(f"Cautious: {self.cautious}")
+        print(f"Escape: {self.escape}")
+        print(f"Suicide: {self.suicide}")
+
+    def rewardFunction(self, gameState, isFinal=False):
+        reward = 0.0
+        pos = gameState.getAgentPosition(self.index)
+        x, y = self.lastState.getAgentPosition(self.index)
+        lastPos = Vectors.newPosition(x, y, self.lastAction)
+        lastEnemyPos = []
+        for enemy in self.hivemind.enemyIndexes:
+            lastEnemyPos.append(self.lastState.getAgentPosition(enemy))
+        if pos != lastPos:
+            # Died - Penalty unless Suicide
+            if self.mode != "Suicide":
+                reward -= 100.0
+            else:
+                reward += 100.0
+        if self.mode == "Cautious":
+            # Carry Gain - Bonus if AnyFood
+            # Carry Loss - Penalty if AnyFood or Escape
+            carryDiff = float(gameState.getAgentState(self.index).numCarrying -
+                    self.lastState.getAgentState(self.index).numCarrying)
+            if (carryDiff > 0.0 and self.mode == "Food") or carryDiff < 0.0:
+                reward += carryDiff * 5.0
+        if self.mode == "Escape":
+            # Carry Gain - Bonus if AnyFood
+            # Carry Loss - Penalty if AnyFood or Escape
+            carryDiff = float(gameState.getAgentState(self.index).numCarrying -
+                    self.lastState.getAgentState(self.index).numCarrying)
+            if (carryDiff > 0.0 and self.mode == "Food") or carryDiff < 0.0:
+                reward += min(0.0, carryDiff) * 5.0
+        if self.mode == "Cautious" or self.mode == "Escape":
+            # Returned Gain - Bonus if CautiousFood or Escape
+            returnDiff = float(gameState.getAgentState(self.index).numReturned -
+                    self.lastState.getAgentState(self.index).numReturned)
+            if returnDiff > 0.0:
+                reward += returnDiff * 10.0
+            # Grab Capsule - Bonus if CautiousFood or Escape
+            if self.hivemind.eatsCapsuleFeature(pos) == 1.0:
+                reward += 10.0
+        # Trapped - Penalty unless Suicide
+        boardFeature = self.hivemind.board.positions[pos]
+        if self.mode != "Suicide" and boardFeature.trapped(pos,
+                self.hivemind.enemyIndexes, self.hivemind.getBeliefDistributions()):
+            reward -= 50.0
+        if reward == 0.0:
+            reward = -0.5
+        return reward
