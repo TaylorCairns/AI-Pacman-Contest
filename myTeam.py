@@ -1433,13 +1433,18 @@ class ReactiveAgent(ApproximateQAgent):
     def setMode(self, gameState):
         agentPos = gameState.getAgentPosition(self.index)
         agentState = gameState.getAgentState(self.index)
+        teamPos = [i for i in self.hivemind.teamIndexes if i != self.index][0]
         if self.mode == None:
             self.mode = "Patrol"
             self.setPatrolTarget(gameState)
         elif self.mode == "Patrol":
             enemies = []
             for enemy in self.hivemind.enemyIndexes:
-                enemies.append(gameState.getAgentState(enemy).isPacman)
+                if gameState.getAgentState(enemy).isPacman:
+                    enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
+                    teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
+                    if enemyDist <= teamDist:
+                        enemies.append(True)
             if any(enemies):
                 self.mode = "Hunt"
             else:
@@ -1478,8 +1483,11 @@ class ReactiveAgent(ApproximateQAgent):
             else:
                 for enemy in self.hivemind.enemyIndexes:
                     if gameState.getAgentState(enemy).isPacman:
-                        self.mode = "Hunt"
-                        break
+                        enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
+                        teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
+                        if enemyDist <= teamDist:
+                            self.mode = "Hunt"
+                            break
         elif self.mode == "Cautious":
             boardFeature = self.hivemind.board.positions[agentPos]
             if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
@@ -1490,8 +1498,11 @@ class ReactiveAgent(ApproximateQAgent):
             else:
                 for enemy in self.hivemind.enemyIndexes:
                     if gameState.getAgentState(enemy).isPacman:
-                        self.mode = "Hunt"
-                        break
+                        enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
+                        teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
+                        if enemyDist <= teamDist:
+                            self.mode = "Hunt"
+                            break
         elif self.mode == "Escape":
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Patrol"
