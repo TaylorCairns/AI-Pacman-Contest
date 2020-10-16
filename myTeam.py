@@ -521,6 +521,7 @@ class Hivemind:
             self.history.append((gameState, beliefs))
 
     def registerNewState(self, agentIndex, gameState):
+        self.storeFeatures = {}
         beliefs = {}
         # Update belief about position of last agent on team to act
         lastAgent = self.teamIndexes[self.teamIndexes.index(agentIndex) -1 % len(self.teamIndexes)]
@@ -1600,7 +1601,7 @@ class ReactiveAgent(ApproximateQAgent):
         return reward if reward != 0.0 else -0.5
 
 class AttackAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
+    def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         self.weights["Near Enemy"] = 42.88718091048829
         self.weights["Kill"] = 38.7956831767021
@@ -1616,7 +1617,7 @@ class AttackAgent(ApproximateQAgent):
         return reward if reward != 0.0 else -0.5
 
 class SuicideAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
+    def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         self.weights["Near Enemy"] = -1.0
         self.weights["Kill"] = -1.0
@@ -1627,7 +1628,7 @@ class SuicideAgent(ApproximateQAgent):
         return reward if reward != 0.0 else -0.5
 
 class GuardAgent(ApproximateQAgent):
-    def __init__(self, *args, gamma=0.99, **kwargs):
+    def __init__(self, *args, **kwargs):
         ApproximateQAgent.__init__(self, *args, **kwargs)
         self.mode = None
         self.target = None
@@ -1652,6 +1653,10 @@ class GuardAgent(ApproximateQAgent):
             return self.patrol
         elif self.mode == "Hunt":
             return self.hunt
+
+    def printWeights(self):
+        print(f"Patrol: {self.patrol}")
+        print(f"Hunt: {self.hunt}")
 
     def rewardFunction(self, gameState, final=False):
         reward = 0.0
@@ -1803,29 +1808,27 @@ class BasicAgent(ApproximateQAgent):
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
         self.patrol = util.Counter()
-        self.patrol["Near Enemy"] = 29.3479304196537
-        self.patrol["Kill"] = 81.90707086917499
-        self.patrol["Dead End"] = -0.8664970542926362
-        self.patrol["Target Position"] = -19.78824616998339
-        self.patrol["Reached Destination"] = 23.46433197106145
+        self.patrol["Near Enemy"] = 45.01295282163635
+        self.patrol["Kill"] = 68.27167119411271
+        self.patrol["Dead End"] = -1.4112227432217523
+        self.patrol["Target Position"] = -10.677373958320551
+        self.patrol["Reached Destination"] = 18.8231482864036
         # huntMode - hunts enemy pacman
         self.hunt = util.Counter()
-        self.hunt["Near Enemy"] = 76.93103076294152
-        self.hunt["Kill"] = 204.76517115259801
-        self.hunt["Trespass"] = -41.35754602665349      
-        # cautiousFood - 
+        self.hunt["Near Enemy"] = 31.596828990195164
+        self.hunt["Kill"] = 130.17420693091177
+        self.hunt["Trespass"] = -4.873241612188567
+        # cautiousFood -
         self.cautious = util.Counter()
-        self.cautious["Near Enemy"] = 1.0
-        self.cautious["Kill"] = 1.0
-        self.cautious["Grab Food"] = 23.785355500432143
-        self.cautious["Food Dist"] = -0.5037243372401199
+        self.cautious["Grab Food"] = 11.687465291872165
+        self.cautious["Food Dist"] = -3.2535612437778436
         # escapeMode - safely returns home
         self.escape = util.Counter()
-        self.escape["Near Enemy"] = 62.959744159440575
-        self.escape["Kill"] = 39.19443205086064
-        self.escape["Border"] = -0.6730131012062132
-        self.escape["Delivery"] = 4.593939474221539
-        self.escape["Dead End"] = -61.98615865902649
+        self.escape["Near Enemy"] = 3.9055854853518635
+        self.escape["Kill"] = 15.905729204953515
+        self.escape["Border"] = -1.7525664212059717
+        self.escape["Delivery"] = 35.68473569158947
+        self.escape["Dead End"] = -3.041019222353345
 
 
     def registerInitialState(self, state):
@@ -1950,7 +1953,7 @@ class BasicAgent(ApproximateQAgent):
         elif self.mode == "Hunt":
             reward += self.hivemind.diedReward(self, gameState, final)
             reward += self.hivemind.killedReward(self, gameState, final)
-            reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))    
+            reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
         elif self.mode == "Cautious":
             reward += self.hivemind.diedReward(self, gameState, final)
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
