@@ -731,7 +731,7 @@ class Hivemind:
         return 1.0 if self.board.positions[position].isDeadEnd() else 0.0
 
     def homeSideFeature(self, position):
-        return 1.0 if self.board.positions[position].isRed() == self.isRed else -1.0
+        return 1.0 if self.board.positions[position].isRed() == self.isRed else 0.0
 
     def scaredFeature(self, index):
         timer = self.history[-1][0].getAgentState(index).scaredTimer
@@ -783,7 +783,7 @@ class Hivemind:
         # Initialise search
         fringe = util.PriorityQueue()
         visited = {}
-        mid = self.history[0][0].getWalls().width / 2 + 0.5
+        mid = self.history[0][0].getWalls().width / 2 - 0.5
         boardFeature = self.board.positions[position]
         if boardFeature.isNode:
             hCost = int(abs(mid - boardFeature.position[0]))
