@@ -1141,7 +1141,7 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, index, hivemind, epsilon=0.05, gamma=0.8, alpha=0.2, **kwargs):
+    def __init__(self, index, hivemind, epsilon=0.0, gamma=0.0, alpha=0.0, **kwargs):
         # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
         self.index = index
         self.red = None
