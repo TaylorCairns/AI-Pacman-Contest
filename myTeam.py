@@ -490,6 +490,7 @@ class Hivemind:
         self.history = []
         self.policies = None
         self.distancer = None
+        self.storeFeatures = {}
 
     def registerInitialState(self, agentIndex, gameState):
         if len(self.history) == 0:
@@ -658,6 +659,9 @@ class Hivemind:
         x, y = state.getAgentPosition(agent.index)
         position = Vectors.newPosition(x, y, action)
         features = util.Counter()
+        stored = (state, action)
+        if stored in self.storeFeatures:
+            return self.storeFeatures[stored]
         # Boolean Features
         if "Bias" in agent.getWeights():
             features["Bias"] = 1.0
@@ -713,6 +717,7 @@ class Hivemind:
             features["Near Enemy"] = self.enemiesOneAway(agent.index, position, state) / enemiesScaleFactor
         if "Kill" in agent.getWeights():
             features["Kill"] = self.kill(agent.index, position, state) / enemiesScaleFactor
+        self.storeFeatures[stored] = features
         return features
 
     """
@@ -1416,6 +1421,21 @@ class ReactiveAgent(ApproximateQAgent):
         self.suicide["Kill"] = -1.0
         self.suicide["Nearest Threat"] = -1.0
 
+    def registerInitialState(self, state):
+        self.startEpisode()
+        self.red = state.isOnRedTeam(self.index)
+        import __main__
+        if '_display' in dir(__main__):
+          self.display = __main__._display
+        self.hivemind.registerInitialState(self.index, state)
+        self.observationHistory.append(state)
+        pos = state.getAgentPosition(self.index)
+        teamPos = state.getAgentPosition([i for i in self.hivemind.teamIndexes if i != self.index][0])
+        if pos[1] > teamPos[1]:
+            self.upper = True
+        else:
+            self.upper = False
+        self.setMode(state)
     """
         Mode triggers
         start - patrolMode
@@ -1517,7 +1537,7 @@ class ReactiveAgent(ApproximateQAgent):
         if self.target != None:
             y = state.getWalls().height // 2
             temp = []
-            if pos[1] >= y:
+            if not self.upper:
                 temp = [target for target in targets if target[1] < y]
             else:
                 temp = [target for target in targets if target[1] >= y]
