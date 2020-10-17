@@ -1439,28 +1439,28 @@ class ReactiveAgent(ApproximateQAgent):
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
         self.patrol = util.Counter()
-        self.patrol["Near Enemy"] = 12.766594854442253
+        self.patrol["Near Enemy"] = 15.380808932260424
         self.patrol["Kill"] = 137.44890369135268
-        self.patrol["Dead End"] = -0.4797022110153288
-        self.patrol["Reached Destination"] = 24.822253922267475
-        self.patrol["Target Position"] = -25.271399852687626
+        self.patrol["Dead End"] = -0.6103022347793536
+        self.patrol["Reached Destination"] = 25.77696272733625
+        self.patrol["Target Position"] = -25.057161456087083
         # huntMode - hunts enemy pacman
         self.hunt = util.Counter()
         self.hunt["Near Enemy"] = 35.01282513578835
         self.hunt["Kill"] = 146.09180132534107
-        self.hunt["Trespass"] = -4.1618987612347444
+        self.hunt["Trespass"] = -4.295313495115435
         # recklessFood - greedy food grab
         self.food = util.Counter()
-        self.food["Grab Food"] = 20.512816004091626
-        self.food["Capsule"] = 11.948247987245027
-        self.food["Food or Capsule"] = -16.281398426454068
+        self.food["Grab Food"] = 6.778743662406079
+        self.food["Capsule"] = 14.582222961020738
+        self.food["Food or Capsule"] = -17.101087470474656
         # escapeMode - safely returns home
         self.escape = util.Counter()
-        self.escape["Near Enemy"] = 46.861346743242876
-        self.escape["Kill"] = 58.82881237467908
+        self.escape["Near Enemy"] = 63.1155691003476
+        self.escape["Kill"] = 55.84060693799062
         self.escape["Delivery"] = 76.1241481076913
-        self.escape["Dead End"] = -13.01217046873462
-        self.escape["Border"] = -6.779293781396581
+        self.escape["Dead End"] = -23.60300000008968
+        self.escape["Border"] = -8.136008077901577
 
     def registerInitialState(self, state):
         self.startEpisode()
