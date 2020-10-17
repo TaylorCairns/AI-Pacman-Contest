@@ -1187,7 +1187,7 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, index, hivemind, epsilon=0.00, gamma=0.0, alpha=0.0, **kwargs):
+    def __init__(self, index, hivemind, epsilon=0.0, gamma=0.0, alpha=0.0, **kwargs):
         # epsilon=0.05, gamma=0.8, alpha=0.2
         self.index = index
         self.red = None
@@ -1439,11 +1439,11 @@ class ReactiveAgent(ApproximateQAgent):
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
         self.patrol = util.Counter()
-        self.patrol["Near Enemy"] = 61.8693210285172
-        self.patrol["Kill"] = 78.30905762570063
-        self.patrol["Dead End"] = -1.1537253240117298
-        self.patrol["Target Position"] = -11.851392692264316
-        self.patrol["Reached Destination"] = 21.821906259531413
+        self.patrol["Near Enemy"] = 6.979266341298856
+        self.patrol["Kill"] = 137.44890369135268
+        self.patrol["Dead End"] = -0.24224619925417606
+        self.patrol["Reached Destination"] = 24.860420151185775
+        self.patrol["Target Position"] = -25.244239824823612
         # huntMode - hunts enemy pacman
         self.hunt = util.Counter()
         self.hunt["Near Enemy"] = 31.596828990195164
@@ -1451,16 +1451,16 @@ class ReactiveAgent(ApproximateQAgent):
         self.hunt["Trespass"] = -4.873241612188567
         # recklessFood - greedy food grab
         self.food = util.Counter()
-        self.food["Grab Food"] = 13.87809120879173
-        self.food["Capsule"] = 13.87809120879173
-        self.food["Food or Capsule"] = -8.557611827987763
+        self.food["Grab Food"] = 10.8557249841801
+        self.food["Capsule"] = 11.948247987245027
+        self.food["Food or Capsule"] = -15.047387485179959
         # escapeMode - safely returns home
         self.escape = util.Counter()
-        self.escape["Near Enemy"] = 25.119633689390227
-        self.escape["Kill"] = 25.485061389742846
-        self.escape["Border"] = -3.322394396534593
-        self.escape["Delivery"] = 80.34915819515658
-        self.escape["Dead End"] = -1.1955609860856
+        self.escape["Near Enemy"] = 46.6951681112909
+        self.escape["Kill"] = 28.574905566558893
+        self.escape["Delivery"] = 78.16351218504524
+        self.escape["Dead End"] = -13.458137375762632
+        self.escape["Border"] = -5.0103361950472936
 
     def registerInitialState(self, state):
         self.startEpisode()
