@@ -1531,7 +1531,7 @@ class ReactiveAgent(ApproximateQAgent):
         elif self.mode == "Escape":
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Patrol"
-            elif chased == 0.0 and border * 1.25 < turns and turn > 5:
+            elif chased == 0.0 and border * 1.25 < turns and turns > 5:
                 self.mode = "Food"
         if self.mode == "Patrol":
             if state.getAgentState(self.index).scaredTimer > 0:
