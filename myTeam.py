@@ -977,7 +977,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'BasicAgent', second = 'BasicAgent', **kwargs):
+               first = 'ReactiveAgent', second = 'ReactiveAgent', **kwargs):
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs),
         eval(second)(secondIndex, hivemind, **kwargs)]
@@ -1397,8 +1397,8 @@ class ReactiveAgent(ApproximateQAgent):
         self.hunt["Trespass"] = -4.873241612188567
         # recklessFood - greedy food grab
         self.food = util.Counter()
-        self.cautious["Grab Food"] = 13.87809120879173
-        self.cautious["Food Dist"] = -8.557611827987763
+        self.food["Grab Food"] = 13.87809120879173
+        self.food["Food Dist"] = -8.557611827987763
         # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
         self.cautious = util.Counter()
         self.cautious["Dead End"] = -11.1559875212927928
