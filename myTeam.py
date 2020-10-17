@@ -538,7 +538,7 @@ class Hivemind:
                     l = self.distancer.getDistance(self.lower[-1], self.lower[0])
             elif low + l > high + h:
                 while low + l >= high + h:
-                    self.upper.append(targets[len(self.upper)])
+                    self.upper.append(targets[-1 - len(self.upper)])
                     high += self.distancer.getDistance(self.upper[-1], self.upper[-2])
                     h = self.distancer.getDistance(self.upper[-1], self.upper[0])
         elif len(self.history) > 1:
@@ -1526,12 +1526,12 @@ class ReactiveAgent(ApproximateQAgent):
                 self.mode = "Escape"
             elif self.huntMode(state):
                 self.mode = "Hunt"
-            elif (enemyDist < foodDist * 1.25 and score > 0) or (border * 1.5 >= turns):
+            elif (enemyDist < foodDist * 1.25 and score > 0) or (border * 1.25 >= turns):
                 self.mode = "Escape"
         elif self.mode == "Escape":
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Patrol"
-            elif chased == 0.0 and border * 1.5 < turns:
+            elif chased == 0.0 and border * 1.25 < turns and turn > 5:
                 self.mode = "Food"
         if self.mode == "Patrol":
             if state.getAgentState(self.index).scaredTimer > 0:
