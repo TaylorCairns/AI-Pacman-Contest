@@ -703,6 +703,8 @@ class Hivemind:
             features["Nearest Threat"] = self.nearestThreatFeature(agent.index, position, state) / distScaleFactor
         if "Target Position" in agent.getWeights():
             features["Target Position"] = self.targetDistanceFeature(position, agent) / distScaleFactor
+        if "Food or Capsule" in agent.getWeights():
+            features["Food or Capsule"] = self.foodOrCapsuleFeature(position, state) / distScaleFactor
         # Misc Features
         if "Score" in agent.getWeights():
             features["Score"] = self.scoreFeature(agent.index, position) / foodScaleFactor
@@ -864,6 +866,17 @@ class Hivemind:
 
     def targetDistanceFeature(self, position, agent):
         return self.distancer.getDistance(position, agent.target)
+
+    def foodOrCapsuleFeature(self, position, state):
+        list = self.getEnemyFood(state).asList()
+        if self.isRed:
+            list +=  state.getBlueCapsules()
+        else:
+            list +=  state.getRedCapsules()
+        distances = []
+        for pos in list:
+            distances.append(self.distancer.getDistance(position, pos))
+        return min(distances) if len(distances) > 0 else 0.0
     # Misc Features
     def scoreFeature(self, index, position):
         boardFeature = self.board.positions[position]
@@ -876,7 +889,7 @@ class Hivemind:
         return score
 
     def turnsRemainingFeature(self):
-        return 300 - (len(self.history) / 2)
+        return 300 - ((len(self.history)-1) // 2)
 
     def foodCarriedFeature(self, index, position, state):
         boardFeature = self.board.positions[position]
@@ -1143,8 +1156,8 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, index, hivemind, epsilon=0.0, gamma=0.0, alpha=0.0, **kwargs):
-        # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
+    def __init__(self, index, hivemind, epsilon=0.00, gamma=0.0, alpha=0.0, **kwargs):
+        # epsilon=0.05, gamma=0.8, alpha=0.2
         self.index = index
         self.red = None
         self.observationHistory = []
@@ -1400,13 +1413,8 @@ class ReactiveAgent(ApproximateQAgent):
         # recklessFood - greedy food grab
         self.food = util.Counter()
         self.food["Grab Food"] = 13.87809120879173
-        self.food["Food Dist"] = -8.557611827987763
-        # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
-        self.cautious = util.Counter()
-        self.cautious["Dead End"] = -11.1559875212927928
-        self.cautious["Grab Food"] = 13.87809120879173
-        self.cautious["Delivery"] = 4.593939474221539
-        self.cautious["Safe Food"] = -8.557611827987763
+        self.food["Capsule"] = 13.87809120879173
+        self.food["Food or Capsule"] = -8.557611827987763
         # escapeMode - safely returns home
         self.escape = util.Counter()
         self.escape["Near Enemy"] = 25.119633689390227
@@ -1414,11 +1422,6 @@ class ReactiveAgent(ApproximateQAgent):
         self.escape["Border"] = -3.322394396534593
         self.escape["Delivery"] = 80.34915819515658
         self.escape["Dead End"] = -1.1955609860856
-        # suicideMode - kills self asap
-        self.suicide = util.Counter()
-        self.suicide["Near Enemy"] = -1.0
-        self.suicide["Kill"] = -1.0
-        self.suicide["Nearest Threat"] = -1.0
 
     def registerInitialState(self, state):
         self.startEpisode()
@@ -1451,20 +1454,7 @@ class ReactiveAgent(ApproximateQAgent):
             if any(enemies):
                 return True
         return False
-    """
-        Mode triggers
-        start - patrolMode
-        patrol mode - enemy pacman - huntMode
-        patrol mode - food < half enemy distance - recklessFood
-        huntMode - enemy closer to spawn than scared timer - suicide
-        huntMode - no enemy pacman - patrolMode
-        suicideMode - at spawn -patrolMode
-        recklessFood - ? - cautiousFood
-        cautiousFood/recklessFood - enemy Pacman and not scared - huntMode
-        cautiousFood - chased - escapeMode
-        recklessFood/cautiousFood/escapeMode - trapped - suicideMode
-        escapeMode - returned home - patrolMode
-    """
+
     def setMode(self, state):
         agentPos = state.getAgentPosition(self.index)
         agentState = state.getAgentState(self.index)
@@ -1472,6 +1462,8 @@ class ReactiveAgent(ApproximateQAgent):
         score += agentState.numCarrying
         foodDist = self.hivemind.foodDistanceFeature(agentPos, state)
         enemyDist = self.hivemind.nearestEnemyFeature(agentPos)
+        turns = self.hivemind.turnsRemainingFeature()
+        border = self.hivemind.borderDistanceFeature(agentPos)
         if len(self.hivemind.history) > 2:
             chased = self.hivemind.beingChased(self.index, agentPos, state)
         if self.mode == None:
@@ -1488,12 +1480,12 @@ class ReactiveAgent(ApproximateQAgent):
                 self.mode = "Escape"
             elif self.huntMode(state):
                 self.mode = "Hunt"
-            elif enemyDist < foodDist * 1.25 and score > 0:
+            elif (enemyDist < foodDist * 1.25 and score > 0) or (border * 1.5 >= turns):
                 self.mode = "Escape"
         elif self.mode == "Escape":
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Patrol"
-            elif chased == 0.0:
+            elif chased == 0.0 and border * 1.5 < turns:
                 self.mode = "Food"
         if self.mode == "Patrol":
             if state.getAgentState(self.index).scaredTimer > 0:
