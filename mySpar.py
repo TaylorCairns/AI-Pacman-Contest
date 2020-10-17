@@ -1333,27 +1333,27 @@ class ApproximateQAgent(Agent):
 
         NUM_EPS_UPDATE = 1
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
-            print('Reinforcement Learning Status:')
+            # print('Reinforcement Learning Status:')
             windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
             if self.episodesSoFar <= self.numTraining:
                 trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
-                print('\tCompleted %d out of %d training episodes' % (
-                        self.episodesSoFar,self.numTraining))
-                print('\tAverage Rewards over all training: %.2f' % (
-                        trainAvg))
+                # print('\tCompleted %d out of %d training episodes' % (
+                #         self.episodesSoFar,self.numTraining))
+                # print('\tAverage Rewards over all training: %.2f' % (
+                #         trainAvg))
             else:
                 testAvg = float(self.accumTestRewards) / (self.episodesSoFar - self.numTraining)
-                print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
-                print('\tAverage Rewards over testing: %.2f' % testAvg)
-            print('\tAverage Rewards for last %d episodes: %.2f'  % (
-                    NUM_EPS_UPDATE,windowAvg))
-            print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
+            #     print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
+            #     print('\tAverage Rewards over testing: %.2f' % testAvg)
+            # print('\tAverage Rewards for last %d episodes: %.2f'  % (
+            #         NUM_EPS_UPDATE,windowAvg))
+            # print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
             self.lastWindowAccumRewards = 0.0
             self.episodeStartTime = time.time()
 
         if self.episodesSoFar == self.numTraining:
             msg = 'Training Done (turning off epsilon and alpha)'
-            print('%s\n%s' % (msg,'-' * len(msg)))
+            # print('%s\n%s' % (msg,'-' * len(msg)))
 
         # did we finish training?
         if self.episodesSoFar == self.numTraining:
