@@ -511,6 +511,21 @@ class Hivemind:
             # self.policies = ValueIterations(foodGrid, beliefs, self)
             self.distancer = distanceCalculator.Distancer(gameState.data.layout)
             self.distancer.getMazeDistances()
+            x = gameState.getWalls().width // 2
+            if self.isRed:
+                x -= 1
+            targets = [x for x in self.board.border.keys()]
+            targets = [target for target in targets if target[0] == x]
+            targets.sort()
+            self.upper = []
+            self.lower = []
+            while len(targets) > 2:
+                self.upper.append(targets.pop(-1))
+                self.lower.append(targets.pop(0))
+            if len(targets) == 1:
+                self.upper.append(targets[0])
+                self.lower.append(targets[0])
+
         elif len(self.history) > 1:
             self.history = []
             beliefs = {}
@@ -1432,11 +1447,17 @@ class ReactiveAgent(ApproximateQAgent):
         self.hivemind.registerInitialState(self.index, state)
         self.observationHistory.append(state)
         pos = state.getAgentPosition(self.index)
-        teamPos = state.getAgentPosition([i for i in self.hivemind.teamIndexes if i != self.index][0])
+        teamIndex = [i for i in self.hivemind.teamIndexes if i != self.index][0]
+        teamPos = state.getAgentPosition(teamIndex)
         if pos[1] > teamPos[1]:
-            self.upper = True
+            self.targets = self.hivemind.upper
+        elif pos[1] == teamPos[1]:
+            if self.index < teamIndex:
+                self.targets = self.hivemind.upper
+            else:
+                self.targets = self.hivemind.lower
         else:
-            self.upper = False
+            self.targets = self.hivemind.lower
         self.setMode(state)
 
     def huntMode(self, state):
@@ -1500,23 +1521,8 @@ class ReactiveAgent(ApproximateQAgent):
                     self.setPatrolTarget(state)
 
     def setPatrolTarget(self, state):
-        targets = [x for x in self.hivemind.board.border.keys()]
-        if self.target is not None and len(targets) > 1:
-            targets.remove(self.target)
-        x = state.getWalls().width // 2
-        if self.hivemind.isRed:
-            x -= 1
-        targets = [target for target in targets if target[0] == x]
-        if self.target != None:
-            y = state.getWalls().height // 2
-            temp = []
-            if not self.upper:
-                temp = [target for target in targets if target[1] < y]
-            else:
-                temp = [target for target in targets if target[1] >= y]
-            if len(temp) > 0:
-                targets = temp
-        self.target = random.choice(targets)
+        self.target = random.choice(self.targets)
+
 
     def getWeights(self):
         if self.mode == None:
