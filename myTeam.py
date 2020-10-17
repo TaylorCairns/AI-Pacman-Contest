@@ -775,7 +775,7 @@ class Hivemind:
                 distance = 0
                 for pos in belief:
                     distance += self.distancer.getDistance(position, pos) * belief[pos]
-                if distance <= lastDistance and distance < 6:
+                if distance <= lastDistance and distance < 5:
                     return 1.0
         return 0.0
 
@@ -1471,7 +1471,8 @@ class ReactiveAgent(ApproximateQAgent):
             self.setPatrolTarget(state)
         elif self.mode == "Hunt":
             if not self.huntMode(state):
-                if not state.getAgentState(self.index).scaredTimer > 0 and score > 0:
+                if (not state.getAgentState(self.index).scaredTimer > 0 and score > 0 or
+                        self.hivemind.enemiesOneAway(self.index, agentPos, state) < 0.0):
                     self.mode = "Patrol"
                 else:
                     self.mode = "Food"
