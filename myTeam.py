@@ -1439,28 +1439,28 @@ class ReactiveAgent(ApproximateQAgent):
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
         self.patrol = util.Counter()
-        self.patrol["Near Enemy"] = 6.979266341298856
+        self.patrol["Near Enemy"] = 12.766594854442253
         self.patrol["Kill"] = 137.44890369135268
-        self.patrol["Dead End"] = -0.24224619925417606
-        self.patrol["Reached Destination"] = 24.860420151185775
-        self.patrol["Target Position"] = -25.244239824823612
+        self.patrol["Dead End"] = -0.4797022110153288
+        self.patrol["Reached Destination"] = 24.822253922267475
+        self.patrol["Target Position"] = -25.271399852687626
         # huntMode - hunts enemy pacman
         self.hunt = util.Counter()
-        self.hunt["Near Enemy"] = 31.596828990195164
-        self.hunt["Kill"] = 130.17420693091177
-        self.hunt["Trespass"] = -4.873241612188567
+        self.hunt["Near Enemy"] = 35.01282513578835
+        self.hunt["Kill"] = 146.09180132534107
+        self.hunt["Trespass"] = -4.1618987612347444
         # recklessFood - greedy food grab
         self.food = util.Counter()
-        self.food["Grab Food"] = 10.8557249841801
+        self.food["Grab Food"] = 20.512816004091626
         self.food["Capsule"] = 11.948247987245027
-        self.food["Food or Capsule"] = -15.047387485179959
+        self.food["Food or Capsule"] = -16.281398426454068
         # escapeMode - safely returns home
         self.escape = util.Counter()
-        self.escape["Near Enemy"] = 46.6951681112909
-        self.escape["Kill"] = 28.574905566558893
-        self.escape["Delivery"] = 78.16351218504524
-        self.escape["Dead End"] = -13.458137375762632
-        self.escape["Border"] = -5.0103361950472936
+        self.escape["Near Enemy"] = 46.861346743242876
+        self.escape["Kill"] = 58.82881237467908
+        self.escape["Delivery"] = 76.1241481076913
+        self.escape["Dead End"] = -13.01217046873462
+        self.escape["Border"] = -6.779293781396581
 
     def registerInitialState(self, state):
         self.startEpisode()
