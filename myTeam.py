@@ -896,13 +896,15 @@ class Hivemind:
     def enemiesOneAway(self, index, position, state):
         numEnemies = 0.0
         agentState = state.getAgentState(index)
-        positions = self.board.positions[position].oneAway(position)
+        boardFeature = self.board.positions[position]
+        positions = boardFeature.oneAway(position)
+        enemyPacman = boardFeature.isRed() == self.isRed
         for enemy in self.enemyIndexes:
             enemyState = state.getAgentState(enemy)
             for pos in positions:
                 if enemyState.getPosition() == pos:
-                    if ((enemyState.isPacman and agentState.scaredTimer < 1) or
-                            (enemyState.scaredTimer > 0 and not enemyState.isPacman)):
+                    if ((enemyPacman and agentState.scaredTimer < 1) or
+                            (enemyState.scaredTimer > 0 and not enemyPacman)):
                         numEnemies += 1.0
                     else:
                         numEnemies -= 1.0
