@@ -508,7 +508,7 @@ class Hivemind:
             else:
                 self.enemyIndexes = gameState.getRedTeamIndices()
                 foodGrid = gameState.getRedFood()
-            self.policies = ValueIterations(foodGrid, beliefs, self)
+            # self.policies = ValueIterations(foodGrid, beliefs, self)
             self.distancer = distanceCalculator.Distancer(gameState.data.layout)
             self.distancer.getMazeDistances()
         elif len(self.history) > 1:
@@ -541,24 +541,24 @@ class Hivemind:
             if agent == None:
                 break
             beliefs[agent] = self.updateBelief(agent, agentIndex, gameState)
-        self.policies.updateEnemyPosVal(beliefs)
+        # self.policies.updateEnemyPosVal(beliefs)
         # Update food values
-        lastObservation = self.history[-1]
-        lastState = lastObservation[0]
-        lastFoodCount = 0
-        currFoodCount = 0
-        foodGrid = None
-        if self.isRed:
-            foodGrid = gameState.getBlueFood()
-            lastFoodCount = len(lastState.getBlueFood().asList())
-            currFoodCount = len(gameState.getBlueFood().asList())
-        else:
-            foodGrid = gameState.getRedFood()
-            lastFoodCount = len(lastState.getRedFood().asList())
-            currFoodCount = len(gameState.getRedFood().asList())
-        if currFoodCount != lastFoodCount:
-            self.policies.updateFoodValues(foodGrid)
-        self.policies.updateHuntValue(beliefs)
+        # lastObservation = self.history[-1]
+        # lastState = lastObservation[0]
+        # lastFoodCount = 0
+        # currFoodCount = 0
+        # foodGrid = None
+        # if self.isRed:
+        #     foodGrid = gameState.getBlueFood()
+        #     lastFoodCount = len(lastState.getBlueFood().asList())
+        #     currFoodCount = len(gameState.getBlueFood().asList())
+        # else:
+        #     foodGrid = gameState.getRedFood()
+        #     lastFoodCount = len(lastState.getRedFood().asList())
+        #     currFoodCount = len(gameState.getRedFood().asList())
+        # if currFoodCount != lastFoodCount:
+        #     self.policies.updateFoodValues(foodGrid)
+        # self.policies.updateHuntValue(beliefs)
         #Update history
         self.history.append((gameState, beliefs))
 
