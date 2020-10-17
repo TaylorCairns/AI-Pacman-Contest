@@ -517,15 +517,30 @@ class Hivemind:
             targets = [x for x in self.board.border.keys()]
             targets = [target for target in targets if target[0] == x]
             targets.sort()
-            self.upper = []
-            self.lower = []
-            while len(targets) > 2:
-                self.upper.append(targets.pop(-1))
-                self.lower.append(targets.pop(0))
-            if len(targets) == 1:
-                self.upper.append(targets[0])
-                self.lower.append(targets[0])
-
+            self.upper, self.lower = [targets[-1]], [targets[0]]
+            low, high = 0, 0
+            while len(targets) > len(self.upper) + len(self.lower):
+                l = self.distancer.getDistance(self.lower[-1], self.lower[0])
+                h = self.distancer.getDistance(self.upper[-1], self.upper[0])
+                if low + l < high + h:
+                    self.lower.append(targets[len(self.lower)])
+                    low += self.distancer.getDistance(self.lower[-1], self.lower[-2])
+                else:
+                    self.upper.append(targets[-1 - len(self.upper)])
+                    high += self.distancer.getDistance(self.upper[-1], self.upper[-2])
+            l = self.distancer.getDistance(self.lower[-1], self.lower[0])
+            h = self.distancer.getDistance(self.upper[-1], self.upper[0])
+            if low + l < high + h:
+                while low + l <= high + h:
+                    target = targets[len(self.lower)]
+                    self.lower.append(targets[len(self.lower)])
+                    low += self.distancer.getDistance(self.lower[-1], self.lower[-2])
+                    l = self.distancer.getDistance(self.lower[-1], self.lower[0])
+            elif low + l > high + h:
+                while low + l >= high + h:
+                    self.upper.append(targets[len(self.upper)])
+                    high += self.distancer.getDistance(self.upper[-1], self.upper[-2])
+                    h = self.distancer.getDistance(self.upper[-1], self.upper[0])
         elif len(self.history) > 1:
             self.history = []
             beliefs = {}
@@ -736,6 +751,7 @@ class Hivemind:
         if "Kill" in agent.getWeights():
             features["Kill"] = self.kill(agent.index, position, state) / enemiesScaleFactor
         self.storeFeatures[stored] = features
+        # print(f"{agent.index}, {position}, {features}")
         return features
 
     """
@@ -1229,6 +1245,8 @@ class ApproximateQAgent(Agent):
         return state
 
     def getQValue(self, state, action):
+        # if self.mode == "Patrol":
+        #     print(f"{state.getAgentPosition(self.index)} {action}: {self.hivemind.getFeatures(state, action, self)}")
         return self.getWeights() * self.hivemind.getFeatures(state, action, self)
 
     def computeValueFromQValues(self, state):
@@ -1243,6 +1261,8 @@ class ApproximateQAgent(Agent):
         bestValue = self.computeValueFromQValues(state)
         actions = state.getLegalActions(self.index)
         for action in actions:
+            # if self.mode == "Patrol":
+            #     print(f"Action {action}: {self.getQValue(state, action)}")
             if self.getQValue(state, action) == bestValue:
                 bestActions.append(action)
         bestAction = None
@@ -1265,8 +1285,12 @@ class ApproximateQAgent(Agent):
         action = None
         if len(legalActions) > 0:
             if util.flipCoin(self.explorationChance):
+                # if self.mode == "Patrol":
+                #     print(f"{state.getAgentPosition(self.index)} Making random choice")
                 action = random.choice(legalActions)
             else:
+                # if self.mode == "Patrol":
+                #     print(f"{state.getAgentPosition(self.index)} Making a choice")
                 action = self.computeActionFromQValues(state)
         self.lastState = state
         self.lastAction = action
@@ -1732,6 +1756,7 @@ class CautiousAgent(ApproximateQAgent):
         elif self.mode == "Escape":
             if self.hivemind.homeSideFeature(agentPos) == 1.0:
                 self.mode = "Cautious"
+        # print(self.mode)
 
     def getWeights(self):
         if self.mode == None:
