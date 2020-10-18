@@ -488,7 +488,7 @@ class Hivemind:
         self.isRed = isRed
         self.board = None
         self.history = []
-        # self.policies = None
+        self.policies = None
         self.distancer = None
         self.storeFeatures = {}
 
@@ -511,36 +511,6 @@ class Hivemind:
             # self.policies = ValueIterations(foodGrid, beliefs, self)
             self.distancer = distanceCalculator.Distancer(gameState.data.layout)
             self.distancer.getMazeDistances()
-            x = gameState.getWalls().width // 2
-            if self.isRed:
-                x -= 1
-            targets = [x for x in self.board.border.keys()]
-            targets = [target for target in targets if target[0] == x]
-            targets.sort()
-            self.upper, self.lower = [targets[-1]], [targets[0]]
-            low, high = 0, 0
-            while len(targets) > len(self.upper) + len(self.lower):
-                l = self.distancer.getDistance(self.lower[-1], self.lower[0])
-                h = self.distancer.getDistance(self.upper[-1], self.upper[0])
-                if low + l < high + h:
-                    self.lower.append(targets[len(self.lower)])
-                    low += self.distancer.getDistance(self.lower[-1], self.lower[-2])
-                else:
-                    self.upper.append(targets[-1 - len(self.upper)])
-                    high += self.distancer.getDistance(self.upper[-1], self.upper[-2])
-            l = self.distancer.getDistance(self.lower[-1], self.lower[0])
-            h = self.distancer.getDistance(self.upper[-1], self.upper[0])
-            if low + l < high + h:
-                while low + l <= high + h:
-                    target = targets[len(self.lower)]
-                    self.lower.append(targets[len(self.lower)])
-                    low += self.distancer.getDistance(self.lower[-1], self.lower[-2])
-                    l = self.distancer.getDistance(self.lower[-1], self.lower[0])
-            elif low + l > high + h:
-                while low + l >= high + h:
-                    self.upper.append(targets[-1 - len(self.upper)])
-                    high += self.distancer.getDistance(self.upper[-1], self.upper[-2])
-                    h = self.distancer.getDistance(self.upper[-1], self.upper[0])
         elif len(self.history) > 1:
             self.history = []
             beliefs = {}
@@ -733,8 +703,6 @@ class Hivemind:
             features["Nearest Threat"] = self.nearestThreatFeature(agent.index, position, state) / distScaleFactor
         if "Target Position" in agent.getWeights():
             features["Target Position"] = self.targetDistanceFeature(position, agent) / distScaleFactor
-        if "Food or Capsule" in agent.getWeights():
-            features["Food or Capsule"] = self.foodOrCapsuleFeature(position, state) / distScaleFactor
         # Misc Features
         if "Score" in agent.getWeights():
             features["Score"] = self.scoreFeature(agent.index, position) / foodScaleFactor
@@ -806,7 +774,7 @@ class Hivemind:
                 distance = 0
                 for pos in belief:
                     distance += self.distancer.getDistance(position, pos) * belief[pos]
-                if distance <= lastDistance and distance < 5:
+                if distance <= lastDistance and distance < 6:
                     return 1.0
         return 0.0
 
@@ -897,17 +865,6 @@ class Hivemind:
 
     def targetDistanceFeature(self, position, agent):
         return self.distancer.getDistance(position, agent.target)
-
-    def foodOrCapsuleFeature(self, position, state):
-        list = self.getEnemyFood(state).asList()
-        if self.isRed:
-            list +=  state.getBlueCapsules()
-        else:
-            list +=  state.getRedCapsules()
-        distances = []
-        for pos in list:
-            distances.append(self.distancer.getDistance(position, pos))
-        return min(distances) if len(distances) > 0 else 0.0
     # Misc Features
     def scoreFeature(self, index, position):
         boardFeature = self.board.positions[position]
@@ -920,7 +877,7 @@ class Hivemind:
         return score
 
     def turnsRemainingFeature(self):
-        return 300 - ((len(self.history)-1) // 2)
+        return 300 - (len(self.history) / 2)
 
     def foodCarriedFeature(self, index, position, state):
         boardFeature = self.board.positions[position]
@@ -940,15 +897,13 @@ class Hivemind:
     def enemiesOneAway(self, index, position, state):
         numEnemies = 0.0
         agentState = state.getAgentState(index)
-        boardFeature = self.board.positions[position]
-        positions = boardFeature.oneAway(position)
-        enemyPacman = boardFeature.isRed() == self.isRed
+        positions = self.board.positions[position].oneAway(position)
         for enemy in self.enemyIndexes:
             enemyState = state.getAgentState(enemy)
             for pos in positions:
                 if enemyState.getPosition() == pos:
-                    if ((enemyPacman and agentState.scaredTimer < 1) or
-                            (enemyState.scaredTimer > 0 and not enemyPacman)):
+                    if ((enemyState.isPacman and agentState.scaredTimer < 1) or
+                            (enemyState.scaredTimer > 0 and not enemyState.isPacman)):
                         numEnemies += 1.0
                     else:
                         numEnemies -= 1.0
@@ -970,6 +925,37 @@ class Hivemind:
     """
         Reward Functions
     """
+    def patrolReward(self, agent, state, final=False):
+        reward = 0.0
+        x, y = agent.lastState.getAgentPosition(agent.index)
+        expected = Vectors.newPosition(x, y, agent.lastAction)
+        actual = state.getAgentPosition(agent.index)
+        if actual != expected:
+            reward -= 100.0
+        scoreChange = state.getScore() - agent.lastState.getScore()
+        if not self.isRed:
+            scoreChange *= -1.0
+        reward += scoreChange * 10.0
+        if agent.target == actual:
+            reward += 5.0
+        return reward
+
+    def huntReward(self, agent, state, final=False):
+        reward = 0.0
+        x, y = agent.lastState.getAgentPosition(agent.index)
+        expected = Vectors.newPosition(x, y, agent.lastAction)
+        actual = state.getAgentPosition(agent.index)
+        if actual != expected:
+            reward -= 100.0
+        enemyPos = [agent.lastState.getAgentPosition(enemy) for enemy in self.enemyIndexes]
+        if expected in enemyPos:
+            reward += 100.0
+        scoreChange = state.getScore() - agent.lastState.getScore()
+        if not self.isRed:
+            scoreChange *= -1.0
+        reward += scoreChange * 10.0
+        return reward
+
     def diedReward(self, agent, state, final=False):
         x, y = agent.lastState.getAgentPosition(agent.index)
         expected = Vectors.newPosition(x, y, agent.lastAction)
@@ -1023,7 +1009,7 @@ class Hivemind:
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'ReactiveAgent', second = 'ReactiveAgent', **kwargs):
+               first = 'BasicAgent', second = 'BasicAgent', **kwargs):
   hivemind = Hivemind([firstIndex, secondIndex], isRed)
   return [eval(first)(firstIndex, hivemind, **kwargs),
         eval(second)(secondIndex, hivemind, **kwargs)]
@@ -1187,8 +1173,8 @@ class DefensiveHivemindAgent(CaptureAgent):
     return random.choice(actions)
 
 class ApproximateQAgent(Agent):
-    def __init__(self, index, hivemind, epsilon=0.0, gamma=0.0, alpha=0.0, **kwargs):
-        # epsilon=0.05, gamma=0.8, alpha=0.2
+    def __init__(self, index, hivemind, epsilon=0.00, gamma=0.0, alpha=0.0, **kwargs):
+        # numTraining=100, epsilon=0.5, alpha=0.5, gamma=1
         self.index = index
         self.red = None
         self.observationHistory = []
@@ -1352,15 +1338,15 @@ class ApproximateQAgent(Agent):
             if self.episodesSoFar <= self.numTraining:
                 trainAvg = self.accumTrainRewards / float(self.episodesSoFar)
                 # print('\tCompleted %d out of %d training episodes' % (
-                        # self.episodesSoFar,self.numTraining))
+                #         self.episodesSoFar,self.numTraining))
                 # print('\tAverage Rewards over all training: %.2f' % (
-                        # trainAvg))
+                #         trainAvg))
             else:
                 testAvg = float(self.accumTestRewards) / (self.episodesSoFar - self.numTraining)
-                # print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
-                # print('\tAverage Rewards over testing: %.2f' % testAvg)
+            #     print('\tCompleted %d test episodes' % (self.episodesSoFar - self.numTraining))
+            #     print('\tAverage Rewards over testing: %.2f' % testAvg)
             # print('\tAverage Rewards for last %d episodes: %.2f'  % (
-                    # NUM_EPS_UPDATE,windowAvg))
+            #         NUM_EPS_UPDATE,windowAvg))
             # print('\tEpisode took %.2f seconds' % (time.time() - self.episodeStartTime))
             self.lastWindowAccumRewards = 0.0
             self.episodeStartTime = time.time()
@@ -1373,7 +1359,7 @@ class ApproximateQAgent(Agent):
         if self.episodesSoFar == self.numTraining:
             # you might want to print your weights here for debugging
             "*** YOUR CODE HERE ***"
-            # print(self.weights)
+            self.printWeights()
 
     ### Debug functions copied from CaptureAgent
     def debugDraw(self, cells, color, clear=False):
@@ -1439,28 +1425,38 @@ class ReactiveAgent(ApproximateQAgent):
         self.weights["Bias"] = 0.0
         # patrolMode - patrols border
         self.patrol = util.Counter()
-        self.patrol["Near Enemy"] = 13.238669316883943
-        self.patrol["Kill"] = 140.74547710643935
-        self.patrol["Dead End"] = -0.6517528261912521
-        self.patrol["Reached Destination"] = 25.906171995637298
-        self.patrol["Target Position"] = -25.317229769954093
+        self.patrol["Near Enemy"] = 61.8693210285172
+        self.patrol["Kill"] = 78.30905762570063
+        self.patrol["Dead End"] = -1.1537253240117298
+        self.patrol["Reached Destination"] = 21.821906259531413
+        self.patrol["Target Position"] = -11.851392692264316
         # huntMode - hunts enemy pacman
         self.hunt = util.Counter()
-        self.hunt["Near Enemy"] = 35.01282513578835
-        self.hunt["Kill"] = 146.09180132534107
-        self.hunt["Trespass"] = -4.503396256233209
+        self.hunt["Near Enemy"] = 31.596828990195164
+        self.hunt["Kill"] = 130.17420693091177
+        self.hunt["Trespass"] = -4.873241612188567
         # recklessFood - greedy food grab
         self.food = util.Counter()
-        self.food["Grab Food"] = 7.732648142117613
-        self.food["Capsule"] = 14.582222961020738
-        self.food["Food or Capsule"] = -17.289188467600404
+        self.food["Grab Food"] = 13.87809120879173
+        self.food["Food Dist"] = -8.557611827987763
+        # cautiousFood - grab food safely - rewards staying near border/ avoid dead ends
+        self.cautious = util.Counter()
+        self.cautious["Dead End"] = -11.1559875212927928
+        self.cautious["Grab Food"] = 13.87809120879173
+        self.cautious["Delivery"] = 4.593939474221539
+        self.cautious["Safe Food"] = -8.557611827987763
         # escapeMode - safely returns home
         self.escape = util.Counter()
-        self.escape["Near Enemy"] = 63.1155691003476
-        self.escape["Kill"] = 55.04436900824328
-        self.escape["Delivery"] = 46.97556383113794
-        self.escape["Dead End"] = -23.60300000008968
-        self.escape["Border"] = -8.176941541662043
+        self.escape["Near Enemy"] = 25.119633689390227
+        self.escape["Kill"] = 25.485061389742846
+        self.escape["Dead End"] = -1.1955609860856
+        self.escape["Delivery"] = 80.34915819515658
+        self.escape["Border"] = -3.322394396534593
+        # suicideMode - kills self asap
+        self.suicide = util.Counter()
+        self.suicide["Near Enemy"] = -1.0
+        self.suicide["Kill"] = -1.0
+        self.suicide["Nearest Threat"] = -1.0
 
     def registerInitialState(self, state):
         self.startEpisode()
@@ -1471,82 +1467,124 @@ class ReactiveAgent(ApproximateQAgent):
         self.hivemind.registerInitialState(self.index, state)
         self.observationHistory.append(state)
         pos = state.getAgentPosition(self.index)
-        teamIndex = [i for i in self.hivemind.teamIndexes if i != self.index][0]
-        teamPos = state.getAgentPosition(teamIndex)
+        teamPos = state.getAgentPosition([i for i in self.hivemind.teamIndexes if i != self.index][0])
         if pos[1] > teamPos[1]:
-            self.targets = self.hivemind.upper
-        elif pos[1] == teamPos[1]:
-            if self.index < teamIndex:
-                self.targets = self.hivemind.upper
-            else:
-                self.targets = self.hivemind.lower
+            self.upper = True
         else:
-            self.targets = self.hivemind.lower
+            self.upper = False
         self.setMode(state)
-
-    def huntMode(self, state):
-        if not state.getAgentState(self.index).scaredTimer > 0:
-            agentPos = state.getAgentPosition(self.index)
-            teamPos = state.getAgentPosition([i for i in self.hivemind.teamIndexes if i != self.index][0])
-            seperation = self.hivemind.distancer.getDistance(agentPos, teamPos)
-            enemies = []
-            for enemy in self.hivemind.enemyIndexes:
-                if state.getAgentState(enemy).isPacman:
-                    enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
-                    teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
-                    if enemyDist <= teamDist or enemyDist <= seperation:
-                        enemies.append(True)
-            if any(enemies):
-                return True
-        return False
-
-    def setMode(self, state):
-        agentPos = state.getAgentPosition(self.index)
-        agentState = state.getAgentState(self.index)
-        score = state.getScore() if self.hivemind.isRed else -state.getScore()
-        score += agentState.numCarrying
-        foodDist = self.hivemind.foodDistanceFeature(agentPos, state)
-        enemyDist = self.hivemind.nearestEnemyFeature(agentPos)
-        turns = self.hivemind.turnsRemainingFeature()
-        border = self.hivemind.borderDistanceFeature(agentPos)
-        if len(self.hivemind.history) > 2:
-            chased = self.hivemind.beingChased(self.index, agentPos, state)
+    """
+        Mode triggers
+        start - patrolMode
+        patrol mode - enemy pacman - huntMode
+        patrol mode - food < half enemy distance - recklessFood
+        huntMode - enemy closer to spawn than scared timer - suicide
+        huntMode - no enemy pacman - patrolMode
+        suicideMode - at spawn -patrolMode
+        recklessFood - ? - cautiousFood
+        cautiousFood/recklessFood - enemy Pacman and not scared - huntMode
+        cautiousFood - chased - escapeMode
+        recklessFood/cautiousFood/escapeMode - trapped - suicideMode
+        escapeMode - returned home - patrolMode
+    """
+    def setMode(self, gameState):
+        agentPos = gameState.getAgentPosition(self.index)
+        agentState = gameState.getAgentState(self.index)
+        teamPos = gameState.getAgentPosition([i for i in self.hivemind.teamIndexes if i != self.index][0])
         if self.mode == None:
             self.mode = "Patrol"
-            self.setPatrolTarget(state)
-        elif self.mode == "Hunt":
-            if not self.huntMode(state):
-                if (not state.getAgentState(self.index).scaredTimer > 0 and score > 0 or
-                        self.hivemind.enemiesOneAway(self.index, agentPos, state) < 0.0):
-                    self.mode = "Patrol"
-                else:
-                    self.mode = "Food"
-        elif self.mode == "Food":
-            if chased == 1.0 or foodDist == 0.0:
-                self.mode = "Escape"
-            elif self.huntMode(state):
-                self.mode = "Hunt"
-            elif (enemyDist < foodDist * 1.25 and score > 0) or (border * 1.25 >= turns):
-                self.mode = "Escape"
-        elif self.mode == "Escape":
-            if self.hivemind.homeSideFeature(agentPos) == 1.0:
-                self.mode = "Patrol"
-            elif chased == 0.0 and border * 1.25 < turns and turns > 5:
-                self.mode = "Food"
-        if self.mode == "Patrol":
-            if state.getAgentState(self.index).scaredTimer > 0:
-                self.mode = "Food"
-            elif self.huntMode(state):
+            self.setPatrolTarget(gameState)
+        elif self.mode == "Patrol":
+            enemies = []
+            for enemy in self.hivemind.enemyIndexes:
+                if gameState.getAgentState(enemy).isPacman:
+                    enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
+                    teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
+                    if enemyDist <= teamDist:
+                        enemies.append(True)
+            if any(enemies):
                 self.mode = "Hunt"
             else:
+                foodDist = self.hivemind.foodDistanceFeature(agentPos, gameState)
+                enemyDist = self.hivemind.nearestEnemyFeature(agentPos)
                 if foodDist*1.25 < enemyDist:
                     self.mode = "Food"
                 elif self.target == agentPos:
-                    self.setPatrolTarget(state)
+                    self.setPatrolTarget(gameState)
+        elif self.mode == "Hunt":
+            enemies = []
+            for enemy in self.hivemind.enemyIndexes:
+                enemies.append(gameState.getAgentState(enemy).isPacman)
+            if not any(enemies):
+                self.mode = "Patrol"
+            elif agentState.scaredTimer > 1:
+                for enemy in self.hivemind.enemyIndexes:
+                    enemyPos = self.hivemind.history[-1][1][enemy].argMax()
+                    dist = self.hivemind.distancer.getDistance(enemyPos, agentState.start.pos)
+                    if dist < agentState.scaredTimer:
+                        self.mode = "Suicide"
+                        break
+        elif self.mode == "Suicide":
+            if agentPos == agentState.start.pos:
+                self.mode = "Patrol"
+        elif self.mode == "Food":
+            boardFeature = self.hivemind.board.positions[agentPos]
+            if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
+                    self.hivemind.getBeliefDistributions()):
+                self.mode = "Suicide"
+            elif self.hivemind.beingChased(self.index, agentPos, gameState) == 1.0:
+                self.mode = "Escape"
+            elif (self.hivemind.nearestEnemyFeature(agentPos) <
+                    self.hivemind.foodDistanceFeature(agentPos, gameState) * 1.25):
+                self.mode = "Cautious"
+            else:
+                for enemy in self.hivemind.enemyIndexes:
+                    if gameState.getAgentState(enemy).isPacman:
+                        enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
+                        teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
+                        if enemyDist <= teamDist:
+                            self.mode = "Hunt"
+                            break
+        elif self.mode == "Cautious":
+            boardFeature = self.hivemind.board.positions[agentPos]
+            if boardFeature.trapped(agentPos, self.hivemind.enemyIndexes,
+                    self.hivemind.getBeliefDistributions()):
+                self.mode = "Suicide"
+            elif self.hivemind.beingChased(self.index, agentPos, gameState) == 1.0:
+                self.mode = "Escape"
+            else:
+                for enemy in self.hivemind.enemyIndexes:
+                    if gameState.getAgentState(enemy).isPacman:
+                        enemyDist = self.hivemind.enemyDistanceFeature(agentPos, enemy)
+                        teamDist = self.hivemind.enemyDistanceFeature(teamPos, enemy)
+                        if enemyDist <= teamDist:
+                            self.mode = "Hunt"
+                            break
+        elif self.mode == "Escape":
+            if self.hivemind.homeSideFeature(agentPos) == 1.0:
+                self.mode = "Patrol"
+            elif self.hivemind.beingChased(self.index, agentPos, gameState) == 0.0:
+                self.mode = "Cautious"
+        # print(self.mode)
 
     def setPatrolTarget(self, state):
-        self.target = random.choice(self.targets)
-
+        targets = [x for x in self.hivemind.board.border.keys()]
+        if self.target is not None and len(targets) > 1:
+            targets.remove(self.target)
+        x = state.getWalls().width // 2
+        if self.hivemind.isRed:
+            x -= 1
+        targets = [target for target in targets if target[0] == x]
+        if self.target != None:
+            y = state.getWalls().height // 2
+            temp = []
+            if not self.upper:
+                temp = [target for target in targets if target[1] < y]
+            else:
+                temp = [target for target in targets if target[1] >= y]
+            if len(temp) > 0:
+                targets = temp
+        self.target = random.choice(targets)
 
     def getWeights(self):
         if self.mode == None:
@@ -1568,12 +1606,15 @@ class ReactiveAgent(ApproximateQAgent):
         print(f"Patrol: {self.patrol}")
         print(f"Hunt: {self.hunt}")
         print(f"Food: {self.food}")
+        print(f"Cautious: {self.cautious}")
         print(f"Escape: {self.escape}")
+        print(f"Suicide: {self.suicide}")
 
     def rewardFunction(self, gameState, final=False):
         reward = 0.0
         if self.mode == "Patrol":
             reward += self.hivemind.diedReward(self, gameState, final)
+            reward += self.hivemind.trappedReward(self, gameState, final)
             reward += self.hivemind.destinationReward(self, gameState, final)
             reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
         elif self.mode == "Hunt":
@@ -1582,12 +1623,20 @@ class ReactiveAgent(ApproximateQAgent):
             reward += min(0.0, self.hivemind.scoreChangeReward(self, gameState, final))
         elif self.mode == "Food":
             reward += self.hivemind.diedReward(self, gameState, final)
+            reward += self.hivemind.trappedReward(self, gameState, final)
+            reward += max(0.0, self.hivemind.carriedChangeReward(self, gameState, final))
+        elif self.mode == "Cautious":
+            reward += self.hivemind.diedReward(self, gameState, final)
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
             reward += self.hivemind.carriedChangeReward(self, gameState, final)
+            reward += self.hivemind.trappedReward(self, gameState, final)
         elif self.mode == "Escape":
             reward += self.hivemind.eatCapsuleReward(self, gameState, final)
             reward += min(0.0, self.hivemind.carriedChangeReward(self, gameState, final))
             reward += self.hivemind.returnedChangeReward(self, gameState, final)
+            reward += self.hivemind.trappedReward(self, gameState, final)
+        elif self.mode == "Suicide":
+            reward -= self.hivemind.diedReward(self, gameState, final)
         return reward if reward != 0.0 else -0.5
 
 class AttackAgent(ApproximateQAgent):
@@ -1930,10 +1979,11 @@ class BasicAgent(ApproximateQAgent):
             return self.escape
 
     def printWeights(self):
-        print(f"Patrol: {self.patrol}")
-        print(f"Hunt: {self.hunt}")
-        print(f"Cautious: {self.cautious}")
-        print(f"Escape: {self.escape}")
+        # print(f"Patrol: {self.patrol}")
+        # print(f"Hunt: {self.hunt}")
+        # print(f"Cautious: {self.cautious}")
+        # print(f"Escape: {self.escape}")
+        pass
 
     def rewardFunction(self, gameState, final=False):
         reward = 0.0
